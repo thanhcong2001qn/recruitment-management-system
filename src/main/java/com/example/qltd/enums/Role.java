@@ -1,6 +1,6 @@
 package com.example.qltd.enums;
 
-public enum RoleName {
+public enum Role {
     ADMIN,
     RECRUITER,
     CANDIDATE
