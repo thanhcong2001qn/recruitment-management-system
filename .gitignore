@@ -32,6 +32,7 @@ build/
 ### VS Code ###
 .vscode/
 .env
+src/main/resources/application-local.properties
 # Compiled class file
 *.class
 
