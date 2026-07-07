@@ -2,9 +2,12 @@ package com.example.qltd.security;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.example.qltd.config.JwtProperties;
 import com.example.qltd.entity.User;
 
 import javax.crypto.SecretKey;
@@ -12,20 +15,19 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Service
+@RequiredArgsConstructor
 public class JwtService {
 
-    @Value("${app.jwt.secret}")
-    private String jwtSecret;
+    private final JwtProperties jwtProperties;
 
-    @Value("${app.jwt.expiration}")
-    private long jwtExpiration;
 
     public String generateToken(User user) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtExpiration);
+        Date expiryDate = new Date(now.getTime() + jwtProperties.getExpiration());
 
         return Jwts.builder()
                 .subject(user.getEmail())
+                .issuer("recruitment-management-system")
                 .claim("userId", user.getId())
                 .claim("role", user.getRole().name())
                 .issuedAt(now)
@@ -35,7 +37,7 @@ public class JwtService {
     }
 
     private SecretKey getSigningKey() {
-        byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
+        byte[] keyBytes = jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 }
