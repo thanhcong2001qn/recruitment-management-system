@@ -1,7 +1,5 @@
 package com.example.qltd.dto.request;
 
-import com.example.qltd.enums.Role;
-
 import jakarta.validation.constraints.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -29,7 +27,7 @@ public class RegisterRequest {
 
     @NotBlank(message = "Confirm password is required")
     private String confirmPassword;
-    
+
     @Pattern(
             regexp = "^(0|\\+84)[0-9]{9}$",
             message = "Phone number is invalid"

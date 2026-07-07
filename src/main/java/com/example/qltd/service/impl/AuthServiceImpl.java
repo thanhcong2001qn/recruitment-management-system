@@ -27,11 +27,11 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public UserResponse register(RegisterRequest request) {
         String email = request.getEmail().trim().toLowerCase();
-        if (userRepository.existsByEmail(email)) {
-            throw new DuplicateResourceException("Email already exists");
-        }
         if (!request.getPassword().equals(request.getConfirmPassword())) {
             throw new BadRequestException("Password confirmation does not match");
+        }
+        if (userRepository.existsByEmail(email)) {
+            throw new DuplicateResourceException("Email already exists");
         }
         User user = User.builder()
                 .fullName(request.getFullName())
