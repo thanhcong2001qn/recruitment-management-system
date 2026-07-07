@@ -5,14 +5,18 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.qltd.dto.request.LoginRequest;
 import com.example.qltd.dto.request.RegisterRequest;
+import com.example.qltd.dto.response.AuthResponse;
 import com.example.qltd.dto.response.UserResponse;
 import com.example.qltd.entity.User;
 import com.example.qltd.enums.Role;
 import com.example.qltd.enums.UserStatus;
 import com.example.qltd.exception.BadRequestException;
 import com.example.qltd.exception.DuplicateResourceException;
+import com.example.qltd.exception.UnauthorizedException;
 import com.example.qltd.repository.UserRepository;
+import com.example.qltd.security.JwtService;
 import com.example.qltd.service.AuthService;
 
 @Service
@@ -22,6 +26,8 @@ public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
 
     private final PasswordEncoder passwordEncoder;
+
+    private final JwtService jwtService;
 
     @Override
     @Transactional
@@ -51,6 +57,33 @@ public class AuthServiceImpl implements AuthService {
                 .phone(savedUser.getPhone())
                 .role(savedUser.getRole())
                 .status(savedUser.getStatus())
+                .build();
+    }
+
+    @Override
+    public AuthResponse login(LoginRequest request) {
+        String email = request.getEmail().trim().toLowerCase();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
+
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new UnauthorizedException("Invalid email or password");
+        }
+
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new UnauthorizedException("User account is not active");
+        }
+
+        String accessToken = jwtService.generateToken(user);
+
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .tokenType("Bearer")
+                .userId(user.getId())
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .role(user.getRole())
                 .build();
     }
 }
