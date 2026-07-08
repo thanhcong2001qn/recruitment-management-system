@@ -4,7 +4,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import com.example.qltd.dto.request.LoginRequest;
@@ -12,6 +12,7 @@ import com.example.qltd.dto.request.RegisterRequest;
 import com.example.qltd.dto.response.ApiResponse;
 import com.example.qltd.dto.response.AuthResponse;
 import com.example.qltd.dto.response.UserResponse;
+import com.example.qltd.exception.UnauthorizedException;
 import com.example.qltd.security.CustomUserDetails;
 import com.example.qltd.service.AuthService;
 
@@ -28,13 +29,8 @@ public class AuthController {
     ) {
         UserResponse response = authService.register(request);
 
-        ApiResponse<UserResponse> apiResponse = ApiResponse.<UserResponse>builder()
-                .success(true)
-                .message("Register successfully")
-                .data(response)
-                .build();
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(apiResponse);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Register successfully", response));
     }
 
     @PostMapping("/login")
@@ -43,29 +39,23 @@ public class AuthController {
     ) {
         AuthResponse response = authService.login(request);
 
-        ApiResponse<AuthResponse> apiResponse = ApiResponse.<AuthResponse>builder()
-                .success(true)
-                .message("Login successfully")
-                .data(response)
-                .build();
-
-        return ResponseEntity.ok(apiResponse);
+        return ResponseEntity.ok(ApiResponse.success("Login successfully", response));
     }
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserResponse>> getCurrentUser(
-                @AuthenticationPrincipal CustomUserDetails currentUser
+                Authentication authentication
         ) {
+        if (authentication == null
+                || !(authentication.getPrincipal() instanceof CustomUserDetails currentUser)
+                || currentUser.getUser() == null) {
+            throw new UnauthorizedException("Authentication is required");
+        }
+
         UserResponse response = authService.getCurrentUser(
                 currentUser.getUsername()
         );
 
-        ApiResponse<UserResponse> apiResponse = ApiResponse.<UserResponse>builder()
-                .success(true)
-                .message("Get current user successfully")
-                .data(response)
-                .build();
-
-        return ResponseEntity.ok(apiResponse);
+        return ResponseEntity.ok(ApiResponse.success("Get current user successfully", response));
     }
 }

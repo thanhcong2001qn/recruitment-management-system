@@ -2,14 +2,17 @@ package com.example.qltd.controller;
 
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.example.qltd.dto.request.LoginRequest;
 import com.example.qltd.dto.request.RegisterRequest;
 import com.example.qltd.dto.response.AuthResponse;
 import com.example.qltd.dto.response.UserResponse;
+import com.example.qltd.entity.User;
 import com.example.qltd.enums.Role;
 import com.example.qltd.enums.UserStatus;
+import com.example.qltd.security.CustomUserDetails;
 import com.example.qltd.security.CustomUserDetailsService;
 import com.example.qltd.security.JwtService;
 import com.example.qltd.service.AuthService;
@@ -18,6 +21,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -127,5 +131,63 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getCurrentUser_withoutToken_shouldReturnUnauthorized() throws Exception {
+        mockMvc.perform(get("/api/auth/me"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.error").value("UNAUTHORIZED"));
+    }
+
+    @Test
+    void getCurrentUser_validToken_shouldReturnOk() throws Exception {
+        User user = User.builder()
+                .id(1L)
+                .fullName("Nguyen Van A")
+                .email("candidate@gmail.com")
+                .password("encodedPassword")
+                .phone("0909123456")
+                .role(Role.CANDIDATE)
+                .status(UserStatus.ACTIVE)
+                .build();
+
+        CustomUserDetails userDetails = new CustomUserDetails(user);
+
+        UserResponse response = UserResponse.builder()
+                .id(1L)
+                .fullName("Nguyen Van A")
+                .email("candidate@gmail.com")
+                .phone("0909123456")
+                .role(Role.CANDIDATE)
+                .status(UserStatus.ACTIVE)
+                .build();
+
+        when(authService.getCurrentUser("candidate@gmail.com")).thenReturn(response);
+
+        mockMvc.perform(get("/api/auth/me")
+                        .principal(new UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                userDetails.getAuthorities()
+                        )))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Get current user successfully"))
+                .andExpect(jsonPath("$.data.id").value(1))
+                .andExpect(jsonPath("$.data.email").value("candidate@gmail.com"))
+                .andExpect(jsonPath("$.data.role").value("CANDIDATE"));
+    }
+
+    @Test
+    void getCurrentUser_invalidToken_shouldReturnUnauthorized() throws Exception {
+        when(jwtService.extractEmail("invalid-token")).thenThrow(new RuntimeException("Invalid token"));
+
+        mockMvc.perform(get("/api/auth/me")
+                        .header("Authorization", "Bearer invalid-token"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.error").value("UNAUTHORIZED"));
     }
 }
