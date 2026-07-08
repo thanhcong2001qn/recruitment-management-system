@@ -11,6 +11,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.example.qltd.security.JwtAuthenticationEntryPoint;
 import com.example.qltd.security.JwtAuthenticationFilter;
 
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,8 @@ public class SecurityConfig {
     private final UserDetailsService userDetailsService;
 
     private final PasswordEncoder passwordEncoder;
+
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
@@ -43,6 +46,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
                         .anyRequest().authenticated()
+                )
+                .exceptionHandling(exception ->
+                        exception.authenticationEntryPoint(jwtAuthenticationEntryPoint)
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

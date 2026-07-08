@@ -10,6 +10,8 @@ import com.example.qltd.dto.response.AuthResponse;
 import com.example.qltd.dto.response.UserResponse;
 import com.example.qltd.enums.Role;
 import com.example.qltd.enums.UserStatus;
+import com.example.qltd.security.CustomUserDetailsService;
+import com.example.qltd.security.JwtService;
 import com.example.qltd.service.AuthService;
 
 import tools.jackson.databind.ObjectMapper;
@@ -34,6 +36,12 @@ class AuthControllerTest {
 
     @MockitoBean
     private AuthService authService;
+
+    @MockitoBean
+    private JwtService jwtService;
+
+    @MockitoBean
+    private CustomUserDetailsService customUserDetailsService;
 
     @Test
     void register_success_shouldReturnCreated() throws Exception {
