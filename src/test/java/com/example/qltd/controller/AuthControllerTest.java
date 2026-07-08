@@ -4,7 +4,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.example.qltd.dto.request.LoginRequest;
 import com.example.qltd.dto.request.RegisterRequest;
+import com.example.qltd.dto.response.AuthResponse;
 import com.example.qltd.dto.response.UserResponse;
 import com.example.qltd.enums.Role;
 import com.example.qltd.enums.UserStatus;
@@ -72,6 +74,48 @@ class AuthControllerTest {
         request.setPhone("123");
 
         mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void login_success_shouldReturnOk() throws Exception {
+        LoginRequest request = new LoginRequest();
+        request.setEmail("candidate@gmail.com");
+        request.setPassword("123456Aa");
+
+        AuthResponse response = AuthResponse.builder()
+                .accessToken("mock-jwt-token")
+                .tokenType("Bearer")
+                .userId(1L)
+                .fullName("Nguyen Van A")
+                .email("candidate@gmail.com")
+                .role(Role.CANDIDATE)
+                .build();
+
+        when(authService.login(any(LoginRequest.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Login successfully"))
+                .andExpect(jsonPath("$.data.accessToken").value("mock-jwt-token"))
+                .andExpect(jsonPath("$.data.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.data.userId").value(1))
+                .andExpect(jsonPath("$.data.email").value("candidate@gmail.com"))
+                .andExpect(jsonPath("$.data.role").value("CANDIDATE"));
+    }
+
+    @Test
+    void login_invalidRequest_shouldReturnBadRequest() throws Exception {
+        LoginRequest request = new LoginRequest();
+        request.setEmail("invalid-email");
+        request.setPassword("");
+
+        mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
