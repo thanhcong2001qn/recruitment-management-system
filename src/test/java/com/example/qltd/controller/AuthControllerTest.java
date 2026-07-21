@@ -5,17 +5,18 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.example.qltd.dto.request.LoginRequest;
-import com.example.qltd.dto.request.RegisterRequest;
-import com.example.qltd.dto.response.AuthResponse;
-import com.example.qltd.dto.response.UserResponse;
-import com.example.qltd.entity.User;
-import com.example.qltd.enums.Role;
-import com.example.qltd.enums.UserStatus;
-import com.example.qltd.security.CustomUserDetails;
-import com.example.qltd.security.CustomUserDetailsService;
-import com.example.qltd.security.JwtService;
-import com.example.qltd.service.AuthService;
+import com.example.qltd.auth.controller.AuthController;
+import com.example.qltd.auth.dto.request.LoginRequest;
+import com.example.qltd.auth.dto.request.RegisterRequest;
+import com.example.qltd.auth.dto.response.AuthResponse;
+import com.example.qltd.auth.service.AuthService;
+import com.example.qltd.common.security.CustomUserDetails;
+import com.example.qltd.common.security.CustomUserDetailsService;
+import com.example.qltd.common.security.JwtService;
+import com.example.qltd.shared.enums.Role;
+import com.example.qltd.shared.enums.UserStatus;
+import com.example.qltd.user.dto.respone.UserResponse;
+import com.example.qltd.user.entity.User;
 
 import tools.jackson.databind.ObjectMapper;
 
