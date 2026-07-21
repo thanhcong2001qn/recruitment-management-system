@@ -1,8 +1,8 @@
 package com.example.qltd.company.entity;
 
 import com.example.qltd.common.base.BaseEntity;
-import com.example.qltd.shared.enums.CompanySize;
-import com.example.qltd.shared.enums.CompanyStatus;
+import com.example.qltd.company.enums.CompanySize;
+import com.example.qltd.company.enums.CompanyStatus;
 
 import jakarta.persistence.*;
 import lombok.*;
