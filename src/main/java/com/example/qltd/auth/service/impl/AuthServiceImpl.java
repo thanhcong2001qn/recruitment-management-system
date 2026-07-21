@@ -1,0 +1,101 @@
+package com.example.qltd.auth.service.impl;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.example.qltd.auth.dto.request.LoginRequest;
+import com.example.qltd.auth.dto.request.RegisterRequest;
+import com.example.qltd.auth.dto.response.AuthResponse;
+import com.example.qltd.auth.service.AuthService;
+import com.example.qltd.common.exception.BadRequestException;
+import com.example.qltd.common.exception.DuplicateResourceException;
+import com.example.qltd.common.exception.UnauthorizedException;
+import com.example.qltd.common.security.JwtService;
+import com.example.qltd.shared.enums.Role;
+import com.example.qltd.shared.enums.UserStatus;
+import com.example.qltd.user.dto.respone.UserResponse;
+import com.example.qltd.user.entity.User;
+import com.example.qltd.user.repository.UserRepository;
+
+@Service
+@RequiredArgsConstructor
+public class AuthServiceImpl implements AuthService {
+
+    private final UserRepository userRepository;
+
+    private final PasswordEncoder passwordEncoder;
+
+    private final JwtService jwtService;
+
+    @Override
+    @Transactional
+    public UserResponse register(RegisterRequest request) {
+        String email = request.getEmail().trim().toLowerCase();
+        if (!request.getPassword().equals(request.getConfirmPassword())) {
+            throw new BadRequestException("Password confirmation does not match");
+        }
+        if (userRepository.existsByEmail(email)) {
+            throw new DuplicateResourceException("Email already exists");
+        }
+        User user = User.builder()
+                .fullName(request.getFullName())
+                .email(email)
+                .password(passwordEncoder.encode(request.getPassword()))
+                .phone(request.getPhone())
+                .role(Role.CANDIDATE)
+                .status(UserStatus.ACTIVE)
+                .build();
+
+        User savedUser = userRepository.save(user);
+
+        return toUserResponse(savedUser);
+    }
+
+    @Override
+    public AuthResponse login(LoginRequest request) {
+        String email = request.getEmail().trim().toLowerCase();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
+
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new UnauthorizedException("Invalid email or password");
+        }
+
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new UnauthorizedException("User account is not active");
+        }
+
+        String accessToken = jwtService.generateToken(user);
+
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .tokenType("Bearer")
+                .userId(user.getId())
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .role(user.getRole())
+                .build();
+    }
+
+    @Override
+    public UserResponse getCurrentUser(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UnauthorizedException("User not found"));
+
+        return toUserResponse(user);
+    }
+
+    private UserResponse toUserResponse(User user) {
+        return UserResponse.builder()
+                .id(user.getId())
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .role(user.getRole())
+                .status(user.getStatus())
+                .build();
+    }
+}

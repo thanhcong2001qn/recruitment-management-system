@@ -1,0 +1,60 @@
+package com.example.qltd.company.entity;
+
+import com.example.qltd.common.base.BaseEntity;
+import com.example.qltd.shared.enums.CompanySize;
+import com.example.qltd.shared.enums.CompanyStatus;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+
+@Entity
+@Table(name = "companies")
+public class Company extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private String name;
+
+    @Column(nullable = false, unique = true)
+    private String slug;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    private String website;
+
+    private String email;
+
+    private String phone;
+
+    private String logoUrl;
+
+    private String address;
+
+    private String city;
+
+    private String country;
+
+    private Integer foundedYear;
+
+    private Integer employeeCount;
+
+    @Enumerated(EnumType.STRING)
+    private CompanySize companySize;
+
+    @Enumerated(EnumType.STRING)
+    private CompanyStatus status;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean deleted = false;
+}
