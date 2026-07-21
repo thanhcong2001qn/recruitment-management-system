@@ -1,4 +1,4 @@
-package com.example.qltd.shared.enums;
+package com.example.qltd.company.enums;
 
 public enum CompanyStatus {
     ACTIVE,
