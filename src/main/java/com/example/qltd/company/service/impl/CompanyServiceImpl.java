@@ -3,8 +3,6 @@ package com.example.qltd.company.service.impl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import com.example.qltd.common.exception.DuplicateResourceException;
 import com.example.qltd.common.util.SlugUtil;
 import com.example.qltd.company.dto.request.CreateCompanyRequest;
 import com.example.qltd.company.dto.response.CompanyResponse;
