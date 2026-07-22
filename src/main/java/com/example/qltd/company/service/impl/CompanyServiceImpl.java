@@ -12,6 +12,7 @@ import com.example.qltd.company.entity.Company;
 import com.example.qltd.company.mapper.CompanyMapper;
 import com.example.qltd.company.repository.CompanyRepository;
 import com.example.qltd.company.service.CompanyService;
+import com.example.qltd.company.validator.CompanyValidator;
 
 @Service
 @RequiredArgsConstructor
@@ -20,11 +21,12 @@ public class CompanyServiceImpl implements CompanyService {
 
     private final CompanyRepository companyRepository;
     private final CompanyMapper companyMapper;
+    private final CompanyValidator companyValidator;
 
     @Override
     public CompanyResponse createCompany(CreateCompanyRequest request) {
 
-        validateCompany(request);
+        companyValidator.validate(request);
 
         Company company = companyMapper.toEntity(request);
 
@@ -33,16 +35,6 @@ public class CompanyServiceImpl implements CompanyService {
         Company savedCompany = companyRepository.save(company);
 
         return companyMapper.toResponse(savedCompany);
-    }
-
-    private void validateCompany(CreateCompanyRequest request) {
-
-        if (companyRepository.existsByNameIgnoreCase(request.getName())) {
-            throw new DuplicateResourceException("Company name already exists");
-        }
-        if (companyRepository.existsByEmail(request.getEmail())) {
-            throw new DuplicateResourceException("Company email already exists");
-        }
     }
 
     private String generateUniqueSlug(String companyName) {

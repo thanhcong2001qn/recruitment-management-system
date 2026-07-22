@@ -3,6 +3,7 @@ package com.example.qltd.company.mapper;
 import org.springframework.stereotype.Component;
 
 import com.example.qltd.common.util.SlugUtil;
+import com.example.qltd.common.util.WebsiteUtil;
 import com.example.qltd.company.dto.request.CreateCompanyRequest;
 import com.example.qltd.company.dto.request.UpdateCompanyRequest;
 import com.example.qltd.company.dto.response.CompanyResponse;
@@ -18,7 +19,7 @@ public class CompanyMapper {
                 .name(request.getName())
                 .slug(SlugUtil.toSlug(request.getName()))
                 .description(request.getDescription())
-                .website(request.getWebsite())
+                .website(WebsiteUtil.normalize(request.getWebsite()))
                 .email(request.getEmail())
                 .phone(request.getPhone())
                 .logoUrl(request.getLogoUrl())
