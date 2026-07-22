@@ -37,10 +37,12 @@ public class CompanyServiceImpl implements CompanyService {
 
     private void validateCompany(CreateCompanyRequest request) {
 
-        if (companyRepository.existsByName(request.getName())) {
+        if (companyRepository.existsByNameIgnoreCase(request.getName())) {
             throw new DuplicateResourceException("Company name already exists");
         }
-
+        if (companyRepository.existsByEmail(request.getEmail())) {
+            throw new DuplicateResourceException("Company email already exists");
+        }
     }
 
     private String generateUniqueSlug(String companyName) {

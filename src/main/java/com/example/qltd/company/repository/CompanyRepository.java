@@ -18,6 +18,10 @@ public interface CompanyRepository extends JpaRepository <Company, Long>,
 
     boolean existsByName(String name);
 
+    boolean existsByNameIgnoreCase(String name);
+
+    boolean existsByEmail(String email);
+
     Page<Company> findByDeletedFalse(Pageable pageable);
 
     Optional<Company> findByIdAndDeletedFalse(Long id);
