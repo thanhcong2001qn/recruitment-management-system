@@ -52,7 +52,8 @@ public class Company extends BaseEntity {
     private CompanySize companySize;
 
     @Enumerated(EnumType.STRING)
-    private CompanyStatus status;
+    @Builder.Default
+    private CompanyStatus status = CompanyStatus.ACTIVE;
 
     @Column(nullable = false)
     @Builder.Default
