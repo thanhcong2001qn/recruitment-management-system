@@ -12,9 +12,10 @@ import lombok.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-
 @Entity
-@Table(name = "companies")
+@Table(name = "companies", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_company_slug", columnNames = "slug")
+})
 public class Company extends BaseEntity {
 
     @Id
