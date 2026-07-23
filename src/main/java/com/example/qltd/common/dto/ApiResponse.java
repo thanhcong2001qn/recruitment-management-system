@@ -1,4 +1,4 @@
-package com.example.qltd.auth.dto.response;
+package com.example.qltd.common.dto;
 
 import lombok.Builder;
 import lombok.Getter;

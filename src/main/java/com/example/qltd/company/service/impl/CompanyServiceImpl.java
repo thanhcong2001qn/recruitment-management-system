@@ -1,11 +1,14 @@
 package com.example.qltd.company.service.impl;
 
+import com.example.qltd.common.mapper.PageMapper;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.example.qltd.common.dto.PagedResponse;
 import com.example.qltd.common.exception.ResourceNotFoundException;
 import com.example.qltd.common.util.SlugUtil;
 import com.example.qltd.company.dto.request.CreateCompanyRequest;
@@ -21,6 +24,7 @@ import com.example.qltd.company.validator.CompanyValidator;
 @Transactional
 public class CompanyServiceImpl implements CompanyService {
 
+    private final PageMapper pageMapper;
     private final CompanyRepository companyRepository;
     private final CompanyMapper companyMapper;
     private final CompanyValidator companyValidator;
@@ -68,11 +72,13 @@ public class CompanyServiceImpl implements CompanyService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<CompanyResponse> getCompanies(Pageable pageable) {
+    public PagedResponse<CompanyResponse> getCompanies(Pageable pageable) {
 
-        return companyRepository
-                .findByDeletedFalse(pageable)
-                .map(companyMapper::toResponse);
+        Page<Company> companies = companyRepository.findByDeletedFalse(pageable);
+
+        return pageMapper.toPagedResponse(
+                companies,
+                companyMapper::toResponse);
 
     }
 }
