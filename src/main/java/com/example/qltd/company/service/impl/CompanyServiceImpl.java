@@ -2,21 +2,22 @@ package com.example.qltd.company.service.impl;
 
 import com.example.qltd.common.mapper.PageMapper;
 import lombok.RequiredArgsConstructor;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import com.example.qltd.common.dto.PagedResponse;
 import com.example.qltd.common.exception.ResourceNotFoundException;
 import com.example.qltd.common.util.SlugUtil;
+import com.example.qltd.company.dto.request.CompanySearchRequest;
 import com.example.qltd.company.dto.request.CreateCompanyRequest;
 import com.example.qltd.company.dto.response.CompanyResponse;
 import com.example.qltd.company.entity.Company;
 import com.example.qltd.company.mapper.CompanyMapper;
 import com.example.qltd.company.repository.CompanyRepository;
 import com.example.qltd.company.service.CompanyService;
+import com.example.qltd.company.specification.CompanySpecification;
 import com.example.qltd.company.validator.CompanyValidator;
 
 @Service
@@ -72,9 +73,13 @@ public class CompanyServiceImpl implements CompanyService {
 
     @Override
     @Transactional(readOnly = true)
-    public PagedResponse<CompanyResponse> getCompanies(Pageable pageable) {
+    public PagedResponse<CompanyResponse> searchCompanies(
+            CompanySearchRequest request,
+            Pageable pageable) {
 
-        Page<Company> companies = companyRepository.findByDeletedFalse(pageable);
+        Specification<Company> specification = CompanySpecification.search(request);
+
+        Page<Company> companies = companyRepository.findAll(specification, pageable);
 
         return pageMapper.toPagedResponse(
                 companies,

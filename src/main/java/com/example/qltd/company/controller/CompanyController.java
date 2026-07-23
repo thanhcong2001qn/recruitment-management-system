@@ -11,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.example.qltd.common.dto.ApiResponse;
 import com.example.qltd.common.dto.PagedResponse;
+import com.example.qltd.company.dto.request.CompanySearchRequest;
 import com.example.qltd.company.dto.request.CreateCompanyRequest;
 import com.example.qltd.company.dto.response.CompanyResponse;
 import com.example.qltd.company.service.CompanyService;
@@ -58,16 +59,19 @@ public class CompanyController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")
-    public ResponseEntity<ApiResponse<PagedResponse<CompanyResponse>>> getCompanies(
+    public ResponseEntity<ApiResponse<PagedResponse<CompanyResponse>>> searchCompanies(
+
+            CompanySearchRequest request,
+
             @PageableDefault(page = 0, size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
-        PagedResponse<CompanyResponse> companies = companyService.getCompanies(pageable);
+        PagedResponse<CompanyResponse> response = companyService.searchCompanies(request, pageable);
 
         return ResponseEntity.ok(
                 ApiResponse.<PagedResponse<CompanyResponse>>builder()
                         .success(true)
                         .message("Company list retrieved successfully")
-                        .data(companies)
+                        .data(response)
                         .build());
 
     }
