@@ -2,11 +2,14 @@ package com.example.qltd.company.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
 import com.example.qltd.auth.dto.response.ApiResponse;
 import com.example.qltd.company.dto.request.CreateCompanyRequest;
 import com.example.qltd.company.dto.response.CompanyResponse;
@@ -22,21 +25,50 @@ public class CompanyController {
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")
     public ResponseEntity<ApiResponse<CompanyResponse>> createCompany(
-            @Valid @RequestBody CreateCompanyRequest request
-    ) {
+            @Valid @RequestBody CreateCompanyRequest request) {
 
         CompanyResponse response = companyService.createCompany(request);
 
-        ApiResponse<CompanyResponse> apiResponse =
-                ApiResponse.<CompanyResponse>builder()
-                        .success(true)
-                        .message("Company created successfully")
-                        .data(response)
-                        .build();
+        ApiResponse<CompanyResponse> apiResponse = ApiResponse.<CompanyResponse>builder()
+                .success(true)
+                .message("Company created successfully")
+                .data(response)
+                .build();
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(apiResponse);
     }
 
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")
+    public ResponseEntity<ApiResponse<CompanyResponse>> getCompany(
+            @PathVariable Long id) {
+
+        CompanyResponse response = companyService.getCompanyById(id);
+
+        return ResponseEntity.ok(
+                ApiResponse.<CompanyResponse>builder()
+                        .success(true)
+                        .message("Company retrieved successfully")
+                        .data(response)
+                        .build());
+
+    }
+
+    @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")
+    public ResponseEntity<ApiResponse<Page<CompanyResponse>>> getCompanies(
+            @PageableDefault(page = 0, size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+
+        Page<CompanyResponse> companies = companyService.getCompanies(pageable);
+
+        return ResponseEntity.ok(
+                ApiResponse.<Page<CompanyResponse>>builder()
+                        .success(true)
+                        .message("Company list retrieved successfully")
+                        .data(companies)
+                        .build());
+
+    }
 }

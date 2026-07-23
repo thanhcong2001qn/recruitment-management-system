@@ -1,8 +1,12 @@
 package com.example.qltd.company.service.impl;
 
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.qltd.common.exception.ResourceNotFoundException;
 import com.example.qltd.common.util.SlugUtil;
 import com.example.qltd.company.dto.request.CreateCompanyRequest;
 import com.example.qltd.company.dto.response.CompanyResponse;
@@ -52,4 +56,23 @@ public class CompanyServiceImpl implements CompanyService {
         return slug + "-" + index;
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public CompanyResponse getCompanyById(Long id) {
+
+        Company company = companyRepository.findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Company not found."));
+
+        return companyMapper.toResponse(company);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<CompanyResponse> getCompanies(Pageable pageable) {
+
+        return companyRepository
+                .findByDeletedFalse(pageable)
+                .map(companyMapper::toResponse);
+
+    }
 }
