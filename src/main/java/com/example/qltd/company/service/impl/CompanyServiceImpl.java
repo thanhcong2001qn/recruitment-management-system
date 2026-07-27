@@ -2,6 +2,9 @@ package com.example.qltd.company.service.impl;
 
 import com.example.qltd.common.mapper.PageMapper;
 import lombok.RequiredArgsConstructor;
+
+import java.util.Optional;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -12,6 +15,7 @@ import com.example.qltd.common.exception.ResourceNotFoundException;
 import com.example.qltd.common.util.SlugUtil;
 import com.example.qltd.company.dto.request.CompanySearchRequest;
 import com.example.qltd.company.dto.request.CreateCompanyRequest;
+import com.example.qltd.company.dto.request.UpdateCompanyRequest;
 import com.example.qltd.company.dto.response.CompanyResponse;
 import com.example.qltd.company.entity.Company;
 import com.example.qltd.company.mapper.CompanyMapper;
@@ -37,28 +41,45 @@ public class CompanyServiceImpl implements CompanyService {
 
         Company company = companyMapper.toEntity(request);
 
-        company.setSlug(generateUniqueSlug(request.getName()));
+        company.setSlug(
+                generateUniqueSlug(
+                        request.getName(),
+                        null));
 
         Company savedCompany = companyRepository.save(company);
 
         return companyMapper.toResponse(savedCompany);
     }
 
-    private String generateUniqueSlug(String companyName) {
+    private String generateUniqueSlug(
+            String companyName,
+            Long excludeCompanyId) {
 
-        String slug = SlugUtil.toSlug(companyName);
+        String baseSlug = SlugUtil.toSlug(companyName);
 
-        if (!companyRepository.existsBySlug(slug)) {
-            return slug;
+        String slug = baseSlug;
+
+        int counter = 1;
+
+        while (true) {
+
+            Optional<Company> company = companyRepository.findBySlug(slug);
+
+            // Chưa có ai dùng slug này
+            if (company.isEmpty()) {
+                return slug;
+            }
+
+            // Nếu đang update và slug này thuộc chính company hiện tại
+            if (excludeCompanyId != null
+                    && company.get().getId().equals(excludeCompanyId)) {
+                return slug;
+            }
+
+            slug = baseSlug + "-" + counter++;
+
         }
 
-        int index = 1;
-
-        while (companyRepository.existsBySlug(slug + "-" + index)) {
-            index++;
-        }
-
-        return slug + "-" + index;
     }
 
     @Override
@@ -84,6 +105,30 @@ public class CompanyServiceImpl implements CompanyService {
         return pageMapper.toPagedResponse(
                 companies,
                 companyMapper::toResponse);
+
+    }
+
+    @Override
+    @Transactional
+    public CompanyResponse updateCompany(
+            Long id,
+            UpdateCompanyRequest request) {
+
+        Company company = companyRepository
+                .findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Company not found."));
+
+        companyValidator.validateUpdate(company, request);
+
+        companyMapper.updateEntity(company, request);
+
+        company.setSlug(
+                generateUniqueSlug(
+                        request.getName(),
+                        company.getId()));
+        Company updatedCompany = companyRepository.save(company);
+
+        return companyMapper.toResponse(updatedCompany);
 
     }
 }

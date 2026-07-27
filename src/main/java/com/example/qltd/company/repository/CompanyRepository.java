@@ -7,7 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-public interface CompanyRepository extends JpaRepository <Company, Long>,
+public interface CompanyRepository extends JpaRepository<Company, Long>,
         JpaSpecificationExecutor<Company> {
 
     Optional<Company> findBySlug(String slug);
@@ -23,5 +23,12 @@ public interface CompanyRepository extends JpaRepository <Company, Long>,
     Page<Company> findByDeletedFalse(Pageable pageable);
 
     Optional<Company> findByIdAndDeletedFalse(Long id);
-    
+
+    boolean existsByNameIgnoreCaseAndIdNot(
+            String name,
+            Long id);
+
+    boolean existsByEmailIgnoreCaseAndIdNot(
+            String email,
+            Long id);
 }

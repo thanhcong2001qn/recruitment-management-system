@@ -13,6 +13,7 @@ import com.example.qltd.common.dto.ApiResponse;
 import com.example.qltd.common.dto.PagedResponse;
 import com.example.qltd.company.dto.request.CompanySearchRequest;
 import com.example.qltd.company.dto.request.CreateCompanyRequest;
+import com.example.qltd.company.dto.request.UpdateCompanyRequest;
 import com.example.qltd.company.dto.response.CompanyResponse;
 import com.example.qltd.company.service.CompanyService;
 
@@ -73,6 +74,28 @@ public class CompanyController {
                         .message("Company list retrieved successfully")
                         .data(response)
                         .build());
+
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")
+    public ResponseEntity<ApiResponse<CompanyResponse>> updateCompany(
+
+            @PathVariable Long id,
+
+            @Valid @RequestBody UpdateCompanyRequest request) {
+
+        CompanyResponse response = companyService.updateCompany(id, request);
+
+        return ResponseEntity.ok(
+
+                ApiResponse.<CompanyResponse>builder()
+                        .success(true)
+                        .message("Company updated successfully")
+                        .data(response)
+                        .build()
+
+        );
 
     }
 }
