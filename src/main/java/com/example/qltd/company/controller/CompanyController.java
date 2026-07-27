@@ -98,4 +98,19 @@ public class CompanyController {
         );
 
     }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deleteCompany(
+            @PathVariable Long id) {
+
+        companyService.deleteCompany(id);
+
+        return ResponseEntity.ok(
+                ApiResponse.<Void>builder()
+                        .success(true)
+                        .message("Company deleted successfully")
+                        .build());
+
+    }
 }

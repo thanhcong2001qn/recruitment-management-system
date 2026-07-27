@@ -18,6 +18,7 @@ import com.example.qltd.company.dto.request.CreateCompanyRequest;
 import com.example.qltd.company.dto.request.UpdateCompanyRequest;
 import com.example.qltd.company.dto.response.CompanyResponse;
 import com.example.qltd.company.entity.Company;
+import com.example.qltd.company.enums.CompanyStatus;
 import com.example.qltd.company.mapper.CompanyMapper;
 import com.example.qltd.company.repository.CompanyRepository;
 import com.example.qltd.company.service.CompanyService;
@@ -129,6 +130,22 @@ public class CompanyServiceImpl implements CompanyService {
         Company updatedCompany = companyRepository.save(company);
 
         return companyMapper.toResponse(updatedCompany);
+
+    }
+
+    @Override
+    @Transactional
+    public void deleteCompany(Long id) {
+
+        Company company = companyRepository
+                .findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Company not found."));
+
+        company.setDeleted(true);
+
+        company.setStatus(CompanyStatus.INACTIVE);
+
+        companyRepository.save(company);
 
     }
 }
