@@ -23,7 +23,7 @@ public class CompanyValidator {
 
         validateDuplicateEmail(request);
 
-        validateFoundedYear(request);
+        validateFoundedYear(request.getFoundedYear());
 
     }
 
@@ -35,7 +35,7 @@ public class CompanyValidator {
 
         validateCompanyEmail(company, request.getEmail());
 
-        validateFoundedYear(request);
+        validateFoundedYear(request.getFoundedYear());
 
     }
 
@@ -59,19 +59,16 @@ public class CompanyValidator {
 
     }
 
-    private void validateFoundedYear(CreateCompanyRequest request) {
-
-        if (request.getFoundedYear() == null) {
+    private void validateFoundedYear(Integer foundedYear) {
+        if (foundedYear == null) {
             return;
         }
 
         int currentYear = Year.now().getValue();
 
-        if (request.getFoundedYear() > currentYear) {
-            throw new IllegalArgumentException(
-                    "Founded year cannot be greater than current year.");
+        if (foundedYear > currentYear) {
+            throw new IllegalArgumentException("Founded year cannot be greater than current year.");
         }
-
     }
 
     private void validateCompanyName(

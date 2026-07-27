@@ -57,22 +57,54 @@ public class CompanyMapper {
                 .build();
     }
 
-    public void updateEntity(Company company,
-                             UpdateCompanyRequest request) {
+    public void updateEntity(Company company, UpdateCompanyRequest request) {
+        if (request.getName() != null && !request.getName().isBlank()) {
+            company.setName(request.getName().trim());
+        }
 
-        company.setName(request.getName());
-        company.setSlug(SlugUtil.toSlug(request.getName()));
-        company.setDescription(request.getDescription());
-        company.setWebsite(request.getWebsite());
-        company.setEmail(request.getEmail());
-        company.setPhone(request.getPhone());
-        company.setLogoUrl(request.getLogoUrl());
-        company.setAddress(request.getAddress());
-        company.setCity(request.getCity());
-        company.setCountry(request.getCountry());
-        company.setCompanySize(request.getCompanySize());
-        company.setFoundedYear(request.getFoundedYear());
-        company.setEmployeeCount(request.getEmployeeCount());
+        if (request.getDescription() != null) {
+            company.setDescription(request.getDescription());
+        }
+
+        if (request.getWebsite() != null) {
+            company.setWebsite(request.getWebsite());
+        }
+
+        if (request.getEmail() != null) {
+            company.setEmail(request.getEmail());
+        }
+
+        if (request.getPhone() != null) {
+            company.setPhone(request.getPhone());
+        }
+
+        if (request.getLogoUrl() != null) {
+            company.setLogoUrl(request.getLogoUrl());
+        }
+
+        if (request.getAddress() != null) {
+            company.setAddress(request.getAddress());
+        }
+
+        if (request.getCity() != null) {
+            company.setCity(request.getCity());
+        }
+
+        if (request.getCountry() != null) {
+            company.setCountry(request.getCountry());
+        }
+
+        if (request.getCompanySize() != null) {
+            company.setCompanySize(request.getCompanySize());
+        }
+
+        if (request.getFoundedYear() != null) {
+            company.setFoundedYear(request.getFoundedYear());
+        }
+
+        if (request.getEmployeeCount() != null) {
+            company.setEmployeeCount(request.getEmployeeCount());
+        }
     }
 
 }
