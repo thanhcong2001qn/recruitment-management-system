@@ -113,4 +113,18 @@ public class CompanyController {
                         .build());
 
     }
+
+    @PostMapping("/{id}/restore")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<CompanyResponse>> restoreCompany(
+            @PathVariable Long id) {
+        CompanyResponse response = companyService.restoreCompany(id);
+
+        return ResponseEntity.ok(
+                ApiResponse.<CompanyResponse>builder()
+                        .success(true)
+                        .message("Company restored successfully")
+                        .data(response)
+                        .build());
+    }
 }

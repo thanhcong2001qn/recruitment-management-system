@@ -148,4 +148,23 @@ public class CompanyServiceImpl implements CompanyService {
         companyRepository.save(company);
 
     }
+
+    @Override
+    @Transactional
+    public CompanyResponse restoreCompany(Long id) {
+
+        Company company = companyRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Company not found."));
+
+        if (!company.getDeleted()) {
+            throw new IllegalStateException("Company is not deleted.");
+        }
+
+        company.setDeleted(false);
+        company.setStatus(CompanyStatus.ACTIVE);
+
+        Company restoredCompany = companyRepository.save(company);
+
+        return companyMapper.toResponse(restoredCompany);
+    }
 }

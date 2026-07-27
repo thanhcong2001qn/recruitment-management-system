@@ -22,4 +22,6 @@ public interface CompanyService {
             UpdateCompanyRequest request);
 
     void deleteCompany(Long id);
+
+    CompanyResponse restoreCompany(Long id);
 }
