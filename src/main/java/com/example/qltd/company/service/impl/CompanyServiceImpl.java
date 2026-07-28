@@ -2,9 +2,6 @@ package com.example.qltd.company.service.impl;
 
 import com.example.qltd.common.mapper.PageMapper;
 import lombok.RequiredArgsConstructor;
-
-import java.util.Optional;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -12,7 +9,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.example.qltd.common.dto.PagedResponse;
 import com.example.qltd.common.exception.ResourceNotFoundException;
-import com.example.qltd.common.util.SlugUtil;
 import com.example.qltd.company.dto.request.CompanySearchRequest;
 import com.example.qltd.company.dto.request.CreateCompanyRequest;
 import com.example.qltd.company.dto.request.UpdateCompanyRequest;
@@ -22,6 +18,7 @@ import com.example.qltd.company.enums.CompanyStatus;
 import com.example.qltd.company.mapper.CompanyMapper;
 import com.example.qltd.company.repository.CompanyRepository;
 import com.example.qltd.company.service.CompanyService;
+import com.example.qltd.company.service.CompanySlugService;
 import com.example.qltd.company.specification.CompanySpecification;
 import com.example.qltd.company.validator.CompanyValidator;
 
@@ -34,53 +31,24 @@ public class CompanyServiceImpl implements CompanyService {
     private final CompanyRepository companyRepository;
     private final CompanyMapper companyMapper;
     private final CompanyValidator companyValidator;
+    private final CompanySlugService companySlugService;
 
     @Override
     public CompanyResponse createCompany(CreateCompanyRequest request) {
 
         companyValidator.validate(request);
 
+        String normalizedName = request.getName().trim();
+
+        request.setName(normalizedName);
+
         Company company = companyMapper.toEntity(request);
 
         company.setSlug(
-                generateUniqueSlug(
-                        request.getName(),
-                        null));
-
+                companySlugService.generate(normalizedName));
         Company savedCompany = companyRepository.save(company);
 
         return companyMapper.toResponse(savedCompany);
-    }
-
-    private String generateUniqueSlug(
-            String companyName,
-            Long excludeCompanyId) {
-
-        String baseSlug = SlugUtil.toSlug(companyName);
-
-        String slug = baseSlug;
-
-        int counter = 1;
-
-        while (true) {
-
-            Optional<Company> company = companyRepository.findBySlug(slug);
-
-            // Chưa có ai dùng slug này
-            if (company.isEmpty()) {
-                return slug;
-            }
-
-            // Nếu đang update và slug này thuộc chính company hiện tại
-            if (excludeCompanyId != null
-                    && company.get().getId().equals(excludeCompanyId)) {
-                return slug;
-            }
-
-            slug = baseSlug + "-" + counter++;
-
-        }
-
     }
 
     @Override
@@ -123,10 +91,19 @@ public class CompanyServiceImpl implements CompanyService {
 
         companyMapper.updateEntity(company, request);
 
-        company.setSlug(
-                generateUniqueSlug(
-                        request.getName(),
-                        company.getId()));
+        if (request.getName() != null) {
+
+            String normalizedName = request.getName().trim();
+
+            request.setName(normalizedName);
+
+            company.setSlug(
+                    companySlugService.generate(
+                            normalizedName,
+                            company.getId()));
+
+        }
+
         Company updatedCompany = companyRepository.save(company);
 
         return companyMapper.toResponse(updatedCompany);

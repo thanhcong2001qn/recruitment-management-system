@@ -9,18 +9,20 @@ import com.example.qltd.company.repository.CompanyRepository;
 import com.example.qltd.company.service.impl.CompanyServiceImpl;
 import com.example.qltd.company.validator.CompanyValidator;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@DisplayName("CompanyService")
 class CompanyServiceImplTest {
 
     @Mock
@@ -33,17 +35,17 @@ class CompanyServiceImplTest {
     private CompanyValidator companyValidator;
 
     @Mock
+    private CompanySlugService companySlugService;
+
+    @Mock
     private PageMapper pageMapper;
 
     @InjectMocks
     private CompanyServiceImpl companyService;
 
     private CreateCompanyRequest request;
-
     private Company company;
-
     private Company savedCompany;
-
     private CompanyResponse response;
 
     @BeforeEach
@@ -55,70 +57,94 @@ class CompanyServiceImplTest {
 
         company = Company.builder()
                 .name("OpenAI")
+                .email("contact@openai.com")
                 .build();
 
         savedCompany = Company.builder()
                 .id(1L)
                 .name("OpenAI")
                 .slug("openai")
+                .email("contact@openai.com")
                 .build();
 
         response = CompanyResponse.builder()
                 .id(1L)
                 .name("OpenAI")
                 .slug("openai")
+                .email("contact@openai.com")
                 .build();
+
     }
 
-    @Test
-    void shouldCreateCompanySuccessfully() {
+    @Nested
+    @DisplayName("createCompany()")
+    class CreateCompany {
 
-        // Arrange
+        @Test
+        @DisplayName("Should create company successfully")
+        void shouldCreateCompanySuccessfully() {
 
-        doNothing().when(companyValidator).validate(request);
+            // Arrange
 
-        when(companyMapper.toEntity(request))
-                .thenReturn(company);
+            doNothing().when(companyValidator).validate(request);
 
-        // generateUniqueSlug()
-        when(companyRepository.findBySlug("openai"))
-                .thenReturn(Optional.empty());
+            when(companyMapper.toEntity(request))
+                    .thenReturn(company);
 
-        when(companyRepository.save(company))
-                .thenReturn(savedCompany);
+            when(companySlugService.generate("OpenAI"))
+                    .thenReturn("openai");
 
-        when(companyMapper.toResponse(savedCompany))
-                .thenReturn(response);
+            when(companyRepository.save(company))
+                    .thenReturn(savedCompany);
 
-        // Act
+            when(companyMapper.toResponse(savedCompany))
+                    .thenReturn(response);
 
-        CompanyResponse result = companyService.createCompany(request);
+            // Act
 
-        assertThat(company.getSlug())
-                .isEqualTo("openai");
-        // Assert
+            CompanyResponse result = companyService.createCompany(request);
 
-        assertThat(result).isNotNull();
+            // Assert
 
-        assertThat(result.getId()).isEqualTo(1L);
+            assertThat(result).isNotNull();
 
-        assertThat(result.getName()).isEqualTo("OpenAI");
+            assertThat(result.getId()).isEqualTo(1L);
 
-        assertThat(result.getSlug()).isEqualTo("openai");
+            assertThat(result.getName()).isEqualTo("OpenAI");
 
-        // Verify
+            assertThat(result.getSlug()).isEqualTo("openai");
 
-        verify(companyValidator).validate(request);
+            assertThat(company.getSlug()).isEqualTo("openai");
 
-        verify(companyMapper).toEntity(request);
+            // Verify order
 
-        verify(companyRepository).findBySlug("openai");
+            verify(companyValidator).validate(request);
 
-        verify(companyRepository).save(company);
+            verify(companyMapper).toEntity(request);
 
-        verify(companyMapper).toResponse(savedCompany);
+            verify(companySlugService).generate("OpenAI");
 
-        verifyNoMoreInteractions(companyRepository);
+            ArgumentCaptor<Company> captor = ArgumentCaptor.forClass(Company.class);
+
+            verify(companyRepository).save(captor.capture());
+
+            Company actual = captor.getValue();
+
+            assertThat(actual.getSlug()).isEqualTo("openai");
+
+            assertThat(actual.getName()).isEqualTo("OpenAI");
+
+            assertThat(actual.getEmail()).isEqualTo("contact@openai.com");
+
+            verify(companyMapper).toResponse(savedCompany);
+
+            verifyNoMoreInteractions(
+                    companyRepository,
+                    companyMapper,
+                    companyValidator,
+                    companySlugService);
+
+        }
 
     }
 

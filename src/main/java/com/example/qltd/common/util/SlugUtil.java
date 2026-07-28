@@ -1,8 +1,13 @@
 package com.example.qltd.common.util;
 
 import java.text.Normalizer;
+import java.util.Locale;
+import java.util.regex.Pattern;
 
 public final class SlugUtil {
+
+    private static final Pattern NON_LATIN = Pattern.compile("[^\\w-]");
+    private static final Pattern WHITESPACE = Pattern.compile("[\\s]+");
 
     private SlugUtil() {
     }
@@ -13,14 +18,20 @@ public final class SlugUtil {
             return "";
         }
 
-        String slug = Normalizer.normalize(input, Normalizer.Form.NFD)
-                .replaceAll("\\p{M}", "")
-                .replaceAll("[^a-zA-Z0-9\\s-]", "")
-                .trim()
-                .replaceAll("\\s+", "-")
-                .toLowerCase();
+        String normalized = Normalizer.normalize(input, Normalizer.Form.NFD);
 
-        return slug;
+        normalized = normalized.replaceAll("\\p{M}", "");
+
+        normalized = WHITESPACE.matcher(normalized)
+                .replaceAll("-");
+
+        normalized = NON_LATIN.matcher(normalized)
+                .replaceAll("");
+
+        return normalized
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("-+", "-")
+                .replaceAll("^-|-$", "");
     }
 
 }
