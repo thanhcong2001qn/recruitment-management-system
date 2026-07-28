@@ -38,9 +38,12 @@ public class CompanyServiceImpl implements CompanyService {
 
         companyValidator.validate(request);
 
-        String normalizedName = request.getName().trim();
+        String normalizedName = request.getName();
 
-        request.setName(normalizedName);
+        if (normalizedName != null) {
+            normalizedName = normalizedName.trim();
+            request.setName(normalizedName);
+        }
 
         Company company = companyMapper.toEntity(request);
 
@@ -93,9 +96,12 @@ public class CompanyServiceImpl implements CompanyService {
 
         if (request.getName() != null) {
 
-            String normalizedName = request.getName().trim();
+            String normalizedName = request.getName();
 
-            request.setName(normalizedName);
+            if (normalizedName != null) {
+                normalizedName = normalizedName.trim();
+                request.setName(normalizedName);
+            }
 
             company.setSlug(
                     companySlugService.generate(

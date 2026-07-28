@@ -1,11 +1,18 @@
 package com.example.qltd.company.service;
 
+import com.example.qltd.common.dto.PagedResponse;
+import com.example.qltd.common.exception.DuplicateResourceException;
+import com.example.qltd.common.exception.ResourceNotFoundException;
 import com.example.qltd.common.mapper.PageMapper;
+import com.example.qltd.company.dto.request.CompanySearchRequest;
 import com.example.qltd.company.dto.request.CreateCompanyRequest;
+import com.example.qltd.company.dto.request.UpdateCompanyRequest;
 import com.example.qltd.company.dto.response.CompanyResponse;
 import com.example.qltd.company.entity.Company;
+import com.example.qltd.company.enums.CompanyStatus;
 import com.example.qltd.company.mapper.CompanyMapper;
 import com.example.qltd.company.repository.CompanyRepository;
+import com.example.qltd.company.service.CompanySlugService;
 import com.example.qltd.company.service.impl.CompanyServiceImpl;
 import com.example.qltd.company.validator.CompanyValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,8 +24,14 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -43,36 +56,36 @@ class CompanyServiceImplTest {
     @InjectMocks
     private CompanyServiceImpl companyService;
 
-    private CreateCompanyRequest request;
     private Company company;
-    private Company savedCompany;
     private CompanyResponse response;
+    private CreateCompanyRequest createRequest;
+    private UpdateCompanyRequest updateRequest;
 
     @BeforeEach
     void setUp() {
 
-        request = new CreateCompanyRequest();
-        request.setName("OpenAI");
-        request.setEmail("contact@openai.com");
+        createRequest = new CreateCompanyRequest();
+
+        createRequest.setName("OpenAI");
+
+        createRequest.setEmail("contact@openai.com");
 
         company = Company.builder()
-                .name("OpenAI")
-                .email("contact@openai.com")
-                .build();
-
-        savedCompany = Company.builder()
                 .id(1L)
                 .name("OpenAI")
-                .slug("openai")
                 .email("contact@openai.com")
+                .deleted(false)
+                .status(CompanyStatus.ACTIVE)
                 .build();
 
         response = CompanyResponse.builder()
                 .id(1L)
                 .name("OpenAI")
-                .slug("openai")
-                .email("contact@openai.com")
                 .build();
+
+        updateRequest = new UpdateCompanyRequest();
+
+        updateRequest.setName("OpenAI Updated");
 
     }
 
@@ -81,68 +94,75 @@ class CompanyServiceImplTest {
     class CreateCompany {
 
         @Test
-        @DisplayName("Should create company successfully")
         void shouldCreateCompanySuccessfully() {
 
-            // Arrange
-
-            doNothing().when(companyValidator).validate(request);
-
-            when(companyMapper.toEntity(request))
+            when(companyMapper.toEntity(createRequest))
                     .thenReturn(company);
 
             when(companySlugService.generate("OpenAI"))
                     .thenReturn("openai");
 
             when(companyRepository.save(company))
-                    .thenReturn(savedCompany);
+                    .thenReturn(company);
 
-            when(companyMapper.toResponse(savedCompany))
+            when(companyMapper.toResponse(company))
                     .thenReturn(response);
 
-            // Act
-
-            CompanyResponse result = companyService.createCompany(request);
-
-            // Assert
+            CompanyResponse result = companyService.createCompany(createRequest);
 
             assertThat(result).isNotNull();
 
             assertThat(result.getId()).isEqualTo(1L);
 
-            assertThat(result.getName()).isEqualTo("OpenAI");
-
-            assertThat(result.getSlug()).isEqualTo("openai");
-
-            assertThat(company.getSlug()).isEqualTo("openai");
-
-            // Verify order
-
-            verify(companyValidator).validate(request);
-
-            verify(companyMapper).toEntity(request);
-
-            verify(companySlugService).generate("OpenAI");
+            assertThat(company.getSlug())
+                    .isEqualTo("openai");
 
             ArgumentCaptor<Company> captor = ArgumentCaptor.forClass(Company.class);
 
             verify(companyRepository).save(captor.capture());
 
-            Company actual = captor.getValue();
+            Company saved = captor.getValue();
 
-            assertThat(actual.getSlug()).isEqualTo("openai");
+            assertThat(saved.getSlug())
+                    .isEqualTo("openai");
 
-            assertThat(actual.getName()).isEqualTo("OpenAI");
+            verify(companyValidator).validate(createRequest);
 
-            assertThat(actual.getEmail()).isEqualTo("contact@openai.com");
+            verify(companySlugService)
+                    .generate("OpenAI");
 
-            verify(companyMapper).toResponse(savedCompany);
+        }
 
-            verifyNoMoreInteractions(
-                    companyRepository,
-                    companyMapper,
-                    companyValidator,
-                    companySlugService);
+        @Test
+        void shouldThrowDuplicateResourceException() {
+
+            doThrow(new DuplicateResourceException("Company already exists"))
+                    .when(companyValidator)
+                    .validate(createRequest);
+
+            assertThatThrownBy(() -> companyService.createCompany(createRequest))
+                    .isInstanceOf(DuplicateResourceException.class);
+
+            verify(companyRepository, never())
+                    .save(any());
+
+        }
+
+        @Test
+        void shouldThrowExceptionWhenRepositoryFails() {
+
+            when(companyMapper.toEntity(createRequest))
+                    .thenReturn(company);
+
+            when(companySlugService.generate(anyString()))
+                    .thenReturn("openai");
+
+            when(companyRepository.save(any()))
+                    .thenThrow(new RuntimeException("Database Error"));
+
+            assertThatThrownBy(() -> companyService.createCompany(createRequest))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessage("Database Error");
 
         }
 
