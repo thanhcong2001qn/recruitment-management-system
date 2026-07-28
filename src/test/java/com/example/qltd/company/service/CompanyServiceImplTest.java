@@ -12,7 +12,6 @@ import com.example.qltd.company.entity.Company;
 import com.example.qltd.company.enums.CompanyStatus;
 import com.example.qltd.company.mapper.CompanyMapper;
 import com.example.qltd.company.repository.CompanyRepository;
-import com.example.qltd.company.service.CompanySlugService;
 import com.example.qltd.company.service.impl.CompanyServiceImpl;
 import com.example.qltd.company.validator.CompanyValidator;
 import org.junit.jupiter.api.BeforeEach;
