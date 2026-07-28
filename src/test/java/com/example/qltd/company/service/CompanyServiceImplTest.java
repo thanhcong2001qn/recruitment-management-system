@@ -168,4 +168,154 @@ class CompanyServiceImplTest {
 
     }
 
+    @Nested
+    @DisplayName("getCompanyById()")
+    class GetCompanyByIdTest {
+
+        @Test
+        @DisplayName("Should return company when id exists")
+        void shouldReturnCompanySuccessfully() {
+
+            when(companyRepository.findByIdAndDeletedFalse(1L))
+                    .thenReturn(Optional.of(company));
+
+            when(companyMapper.toResponse(company))
+                    .thenReturn(response);
+
+            CompanyResponse result = companyService.getCompanyById(1L);
+
+            assertThat(result).isNotNull();
+
+            assertThat(result.getId()).isEqualTo(1L);
+
+            verify(companyRepository)
+                    .findByIdAndDeletedFalse(1L);
+
+            verify(companyMapper)
+                    .toResponse(company);
+
+        }
+
+        @Test
+        @DisplayName("Should throw ResourceNotFoundException when company does not exist")
+        void shouldThrowResourceNotFoundException() {
+
+            when(companyRepository.findByIdAndDeletedFalse(1L))
+                    .thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> companyService.getCompanyById(1L))
+                    .isInstanceOf(ResourceNotFoundException.class)
+                    .hasMessage("Company not found.");
+
+            verify(companyMapper, never())
+                    .toResponse(any());
+
+        }
+    }
+
+    @Nested
+    @DisplayName("updateCompany()")
+    class UpdateCompanyTest {
+
+        @Test
+        @DisplayName("Should update company successfully")
+        void shouldUpdateCompanySuccessfully() {
+
+            when(companyRepository.findByIdAndDeletedFalse(1L))
+                    .thenReturn(Optional.of(company));
+
+            when(companySlugService.generate(
+                    "OpenAI Updated",
+                    1L))
+                    .thenReturn("openai-updated");
+
+            when(companyRepository.save(company))
+                    .thenReturn(company);
+
+            when(companyMapper.toResponse(company))
+                    .thenReturn(response);
+
+            CompanyResponse result = companyService.updateCompany(
+                    1L,
+                    updateRequest);
+
+            assertThat(result).isNotNull();
+
+            assertThat(company.getSlug())
+                    .isEqualTo("openai-updated");
+
+            verify(companyValidator)
+                    .validateUpdate(company, updateRequest);
+
+            verify(companyMapper)
+                    .updateEntity(company, updateRequest);
+
+            verify(companyRepository)
+                    .save(company);
+
+        }
+
+        @Test
+        @DisplayName("Should throw ResourceNotFoundException when updating non-existing company")
+        void shouldThrowResourceNotFoundWhenUpdating() {
+
+            when(companyRepository.findByIdAndDeletedFalse(1L))
+                    .thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> companyService.updateCompany(
+                    1L,
+                    updateRequest))
+                    .isInstanceOf(ResourceNotFoundException.class);
+
+            verify(companyRepository, never())
+                    .save(any());
+
+        }
+
+        @Test
+        @DisplayName("Should throw DuplicateResourceException when validator fails")
+        void shouldThrowDuplicateExceptionWhenUpdating() {
+
+            when(companyRepository.findByIdAndDeletedFalse(1L))
+                    .thenReturn(Optional.of(company));
+
+            doThrow(new DuplicateResourceException("Company already exists"))
+                    .when(companyValidator)
+                    .validateUpdate(company, updateRequest);
+
+            assertThatThrownBy(() -> companyService.updateCompany(
+                    1L,
+                    updateRequest))
+                    .isInstanceOf(DuplicateResourceException.class);
+
+            verify(companyRepository, never())
+                    .save(any());
+
+        }
+
+        @Test
+        @DisplayName("Should not regenerate slug when company name is null")
+        void shouldNotGenerateSlugWhenNameIsNull() {
+
+            updateRequest.setName(null);
+
+            when(companyRepository.findByIdAndDeletedFalse(1L))
+                    .thenReturn(Optional.of(company));
+
+            when(companyRepository.save(company))
+                    .thenReturn(company);
+
+            when(companyMapper.toResponse(company))
+                    .thenReturn(response);
+
+            companyService.updateCompany(
+                    1L,
+                    updateRequest);
+
+            verify(companySlugService, never())
+                    .generate(anyString(), anyLong());
+
+        }
+    }
+
 }
