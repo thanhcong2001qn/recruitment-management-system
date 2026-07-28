@@ -4,7 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import com.example.qltd.auth.dto.response.ApiResponse;
+import com.example.qltd.common.dto.ApiResponse;
 
 @RestController
 @RequestMapping("/api/test")
@@ -18,8 +18,7 @@ public class TestAuthorizationController {
                         .success(true)
                         .message("Admin access granted")
                         .data("Hello ADMIN")
-                        .build()
-        );
+                        .build());
     }
 
     @GetMapping("/recruiter")
@@ -30,8 +29,7 @@ public class TestAuthorizationController {
                         .success(true)
                         .message("Recruiter access granted")
                         .data("Hello RECRUITER")
-                        .build()
-        );
+                        .build());
     }
 
     @GetMapping("/candidate")
@@ -42,8 +40,7 @@ public class TestAuthorizationController {
                         .success(true)
                         .message("Candidate access granted")
                         .data("Hello CANDIDATE")
-                        .build()
-        );
+                        .build());
     }
 
     @GetMapping("/authenticated")
@@ -53,7 +50,6 @@ public class TestAuthorizationController {
                         .success(true)
                         .message("Authenticated access granted")
                         .data("Hello authenticated user")
-                        .build()
-        );
+                        .build());
     }
 }

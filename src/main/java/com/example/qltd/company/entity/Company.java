@@ -12,9 +12,10 @@ import lombok.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-
 @Entity
-@Table(name = "companies")
+@Table(name = "companies", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_company_slug", columnNames = "slug")
+})
 public class Company extends BaseEntity {
 
     @Id
@@ -52,7 +53,8 @@ public class Company extends BaseEntity {
     private CompanySize companySize;
 
     @Enumerated(EnumType.STRING)
-    private CompanyStatus status;
+    @Builder.Default
+    private CompanyStatus status = CompanyStatus.ACTIVE;
 
     @Column(nullable = false)
     @Builder.Default
