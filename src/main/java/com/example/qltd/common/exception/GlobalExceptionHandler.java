@@ -124,4 +124,11 @@ public class GlobalExceptionHandler {
                                 .build());
 
     }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalStateException(IllegalStateException ex) {
+        return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "message", ex.getMessage()));
+    }
 }
