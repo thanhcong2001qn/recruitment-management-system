@@ -604,4 +604,310 @@ public class CompanyControllerIT extends AbstractIntegrationTest {
         }
 
     }
+
+    @Nested
+    @DisplayName("Validation Tests")
+    class ValidationTests {
+
+        @WithMockUser(username = "admin", roles = "ADMIN")
+        @Test
+        @DisplayName("Should return validation error when email already exists")
+        void shouldReturnValidationErrorWhenDuplicateEmail() throws Exception {
+
+            Company company = CompanyTestFactory.company();
+            companyRepository.save(company);
+
+            CreateCompanyRequest request = CompanyTestFactory.createRequest();
+            request.setName("Google");
+            request.setEmail(company.getEmail());
+
+            mockMvc.perform(
+                    post("/api/companies")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.error").value("DUPLICATE_RESOURCE"));
+
+        }
+
+        @WithMockUser(username = "admin", roles = "ADMIN")
+        @Test
+        @DisplayName("Should return validation error when founded year is invalid")
+        void shouldReturnValidationErrorWhenFoundedYearInvalid() throws Exception {
+
+            CreateCompanyRequest request = CompanyTestFactory.createRequest();
+            request.setFoundedYear(1700);
+
+            mockMvc.perform(
+                    post("/api/companies")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.errors.foundedYear").exists());
+
+        }
+
+        @Test
+        @DisplayName("Should return validation error when employee count is negative")
+        void shouldReturnValidationErrorWhenEmployeeCountNegative() throws Exception {
+
+            CreateCompanyRequest request = CompanyTestFactory.createRequest();
+            request.setEmployeeCount(-5);
+
+            mockMvc.perform(
+                    post("/api/companies")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.errors.employeeCount").exists());
+
+        }
+
+        @Test
+        @DisplayName("Should return validation error when request body is malformed")
+        void shouldReturnValidationErrorWhenMalformedJson() throws Exception {
+
+            String invalidJson = """
+                    {
+                      "name":"OpenAI",
+                      "email":
+                    }
+                    """;
+
+            mockMvc.perform(
+                    post("/api/companies")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(invalidJson))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error")
+                            .value("INVALID_REQUEST_BODY"));
+
+        }
+
+    }
+
+    @Nested
+    @DisplayName("Search Tests")
+    class SearchTests {
+
+        @BeforeEach
+        void setupData() {
+
+            companyRepository.deleteAll();
+
+            Company openAI = CompanyTestFactory.company();
+
+            openAI.setCity("Ho Chi Minh");
+            openAI.setStatus(CompanyStatus.ACTIVE);
+
+            companyRepository.save(openAI);
+
+            Company microsoft = CompanyTestFactory.company();
+
+            microsoft.setName("Microsoft");
+            microsoft.setSlug("microsoft");
+            microsoft.setEmail("microsoft@test.com");
+            microsoft.setCity("Ha Noi");
+            microsoft.setStatus(CompanyStatus.INACTIVE);
+
+            companyRepository.save(microsoft);
+
+        }
+
+        @WithMockUser(username = "admin", roles = "ADMIN")
+        @Test
+        @DisplayName("Should search by city")
+        void shouldSearchByCity() throws Exception {
+
+            mockMvc.perform(
+                    get("/api/companies")
+                            .param("city", "Ha Noi"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.items.length()").value(1))
+                    .andExpect(jsonPath("$.data.items[0].city")
+                            .value("Ha Noi"));
+
+        }
+
+        @WithMockUser(username = "admin", roles = "ADMIN")
+        @Test
+        @DisplayName("Should search by status")
+        void shouldSearchByStatus() throws Exception {
+
+            mockMvc.perform(
+                    get("/api/companies")
+                            .param("status", "ACTIVE"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.items.length()").value(1))
+                    .andExpect(jsonPath("$.data.items[0].status")
+                            .value("ACTIVE"));
+
+        }
+
+        @WithMockUser(username = "admin", roles = "ADMIN")
+        @Test
+        @DisplayName("Should return empty list")
+        void shouldReturnEmptyList() throws Exception {
+
+            mockMvc.perform(
+                    get("/api/companies")
+                            .param("keyword", "ABCXYZ"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.items.length()").value(0));
+
+        }
+
+    }
+
+    @Nested
+    @DisplayName("Pagination Tests")
+    class PaginationTests {
+
+        @BeforeEach
+        void prepareData() {
+
+            companyRepository.deleteAll();
+
+            for (int i = 1; i <= 20; i++) {
+
+                Company company = CompanyTestFactory.company();
+
+                company.setName("Company " + i);
+                company.setSlug("company-" + i);
+                company.setEmail("company" + i + "@test.com");
+
+                companyRepository.save(company);
+
+            }
+
+        }
+
+        @WithMockUser(username = "admin", roles = "ADMIN")
+        @Test
+        @DisplayName("Should return first page")
+        void shouldReturnFirstPage() throws Exception {
+
+            mockMvc.perform(
+                    get("/api/companies")
+                            .param("page", "0")
+                            .param("size", "5"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.items.length()")
+                            .value(5))
+                    .andExpect(jsonPath("$.data.totalElements")
+                            .value(20));
+
+        }
+
+        @WithMockUser(username = "admin", roles = "ADMIN")
+        @Test
+        @DisplayName("Should sort ascending")
+        void shouldSortAscending() throws Exception {
+
+            mockMvc.perform(
+                    get("/api/companies")
+                            .param("sort", "name,asc"))
+                    .andExpect(status().isOk());
+
+        }
+
+        @WithMockUser(username = "admin", roles = "ADMIN")
+        @Test
+        @DisplayName("Should sort descending")
+        void shouldSortDescending() throws Exception {
+
+            mockMvc.perform(
+                    get("/api/companies")
+                            .param("sort", "name,desc"))
+                    .andExpect(status().isOk());
+
+        }
+
+    }
+
+    @Nested
+    @DisplayName("Business Rule Tests")
+    class BusinessRuleTests {
+
+        @WithMockUser(username = "admin", roles = "ADMIN")
+        @Test
+        @DisplayName("Should keep slug when updating without changing name")
+        void shouldKeepSlugWhenNameNotChanged() throws Exception {
+
+            Company company = companyRepository.save(
+                    CompanyTestFactory.company());
+
+            UpdateCompanyRequest request = CompanyTestFactory.updateRequest();
+
+            request.setName(company.getName());
+
+            mockMvc.perform(
+                    put("/api/companies/{id}", company.getId())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk());
+
+            Company updated = companyRepository.findById(company.getId()).orElseThrow();
+
+            assertThat(updated.getSlug()).isEqualTo("openai");
+
+        }
+
+        @WithMockUser(username = "admin", roles = "ADMIN")
+        @Test
+        @DisplayName("Should generate new slug when company name changes")
+        void shouldGenerateNewSlugWhenNameChanges() throws Exception {
+
+            Company company = companyRepository.save(
+                    CompanyTestFactory.company());
+
+            UpdateCompanyRequest request = CompanyTestFactory.updateRequest();
+
+            request.setName("OpenAI Vietnam");
+
+            mockMvc.perform(
+                    put("/api/companies/{id}", company.getId())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk());
+
+            Company updated = companyRepository.findById(company.getId()).orElseThrow();
+
+            assertThat(updated.getSlug())
+                    .isEqualTo("openai-vietnam");
+
+        }
+
+        @WithMockUser(username = "admin", roles = "ADMIN")
+        @Test
+        @DisplayName("Should not restore active company")
+        void shouldNotRestoreActiveCompany() throws Exception {
+
+            Company company = companyRepository.save(
+                    CompanyTestFactory.company());
+
+            mockMvc.perform(
+                    post("/api/companies/{id}/restore", company.getId()))
+                    .andExpect(status().isBadRequest());
+
+        }
+
+        @WithMockUser(username = "admin", roles = "ADMIN")
+        @Test
+        @DisplayName("Should soft delete only")
+        void shouldSoftDeleteOnly() throws Exception {
+
+            Company company = companyRepository.save(
+                    CompanyTestFactory.company());
+
+            mockMvc.perform(
+                    delete("/api/companies/{id}", company.getId()))
+                    .andExpect(status().isOk());
+
+            assertThat(
+                    companyRepository.findById(company.getId())).isPresent();
+
+        }
+
+    }
 }
