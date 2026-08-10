@@ -37,6 +37,7 @@ public class Company extends BaseEntity {
 
     private String phone;
 
+    @Column(name = "logo_url")
     private String logoUrl;
 
     private String address;
