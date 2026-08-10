@@ -36,7 +36,7 @@ public final class CompanySpecification {
                 predicates.add(
                         cb.equal(
                                 cb.lower(root.get("city")),
-                                request.getCity().trim().toLowerCase()));
+                                request.getCity().trim()));
             }
 
             if (request.getStatus() != null) {
