@@ -15,15 +15,11 @@ permissions:
   contents: read
 
 jobs:
-
   test:
-
     name: Build and Test
-
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Checkout source code
         uses: actions/checkout@v4
 
@@ -36,6 +32,9 @@ jobs:
 
       - name: Verify Java version
         run: java -version
+
+      - name: Grant execute permission for mvnw
+        run: chmod +x mvnw
 
       - name: Run tests
         run: ./mvnw clean verify
