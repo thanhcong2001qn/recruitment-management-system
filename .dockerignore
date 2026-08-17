@@ -1,0 +1,17 @@
+target/
+.git/
+.gitignore
+.idea/
+.vscode/
+*.iml
+
+.mvn/
+mvnw
+mvnw.cmd
+
+README.md
+
+.env
+.env.*
+
+docker-compose.override.yml
