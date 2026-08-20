@@ -131,4 +131,21 @@ public class GlobalExceptionHandler {
                 "success", false,
                 "message", ex.getMessage()));
     }
+
+    @ExceptionHandler(BusinessRuleException.class)
+    public ResponseEntity<ApiError> handleBusinessRuleException(
+            BusinessRuleException ex) {
+
+        ApiError apiError = ApiError.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("BUSINESS_RULE_ERROR")
+                .message(ex.getMessage())
+                .errors(null)
+                .build();
+
+        return ResponseEntity
+                .badRequest()
+                .body(apiError);
+    }
 }
