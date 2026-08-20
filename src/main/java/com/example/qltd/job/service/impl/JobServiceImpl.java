@@ -14,6 +14,13 @@ import com.example.qltd.job.validator.JobValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.qltd.common.dto.PagedResponse;
+import com.example.qltd.common.mapper.PageMapper;
+import com.example.qltd.job.dto.request.JobSearchRequest;
+import com.example.qltd.job.specification.JobSpecification;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +36,8 @@ public class JobServiceImpl implements JobService {
     private final JobValidator jobValidator;
 
     private final JobSlugService jobSlugService;
+
+    private final PageMapper pageMapper;
 
     @Override
     public JobResponse createJob(CreateJobRequest request) {
@@ -57,5 +66,22 @@ public class JobServiceImpl implements JobService {
         Job savedJob = jobRepository.save(job);
 
         return jobMapper.toResponse(savedJob);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PagedResponse<JobResponse> searchJobs(
+            JobSearchRequest request,
+            Pageable pageable) {
+
+        Specification<Job> specification = JobSpecification.search(request);
+
+        Page<Job> jobs = jobRepository.findAll(
+                specification,
+                pageable);
+
+        return pageMapper.toPagedResponse(
+                jobs,
+                jobMapper::toResponse);
     }
 }

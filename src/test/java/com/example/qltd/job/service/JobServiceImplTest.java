@@ -1,25 +1,40 @@
 package com.example.qltd.job.service;
 
+import com.example.qltd.common.dto.PagedResponse;
 import com.example.qltd.common.exception.ResourceNotFoundException;
+import com.example.qltd.common.mapper.PageMapper;
 import com.example.qltd.company.entity.Company;
 import com.example.qltd.company.repository.CompanyRepository;
 import com.example.qltd.job.dto.request.CreateJobRequest;
+import com.example.qltd.job.dto.request.JobSearchRequest;
 import com.example.qltd.job.dto.response.JobResponse;
 import com.example.qltd.job.entity.Job;
 import com.example.qltd.job.mapper.JobMapper;
 import com.example.qltd.job.repository.JobRepository;
 import com.example.qltd.job.service.impl.JobServiceImpl;
+import com.example.qltd.job.support.JobTestFactory;
 import com.example.qltd.job.validator.JobValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import java.util.List;
 import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -41,10 +56,13 @@ class JobServiceImplTest {
     @Mock
     private JobSlugService jobSlugService;
 
+    @Mock
+    private PageMapper pageMapper;
+
     @InjectMocks
     private JobServiceImpl jobService;
 
-    private CreateJobRequest request;
+    private CreateJobRequest createRequest;
 
     private Company company;
 
@@ -55,25 +73,11 @@ class JobServiceImplTest {
     @BeforeEach
     void setUp() {
 
-        request = new CreateJobRequest();
+        createRequest = JobTestFactory.createRequest();
 
-        request.setTitle("Java Backend Developer");
+        company = JobTestFactory.activeCompany();
 
-        request.setCompanyId(1L);
-
-        company = Company.builder()
-                .id(1L)
-                .name("OpenAI")
-                .slug("openai")
-                .deleted(false)
-                .build();
-
-        job = Job.builder()
-                .id(1L)
-                .title("Java Backend Developer")
-                .slug("java-backend-developer")
-                .company(company)
-                .build();
+        job = JobTestFactory.job(company);
 
         response = JobResponse.builder()
                 .id(1L)
@@ -84,142 +88,329 @@ class JobServiceImplTest {
                 .build();
     }
 
-    @Test
-    @DisplayName("Should create job successfully")
-    void shouldCreateJobSuccessfully() {
+    @Nested
+    @DisplayName("createJob()")
+    class CreateJobTest {
 
-        when(companyRepository
-                .findByIdAndDeletedFalse(1L))
-                .thenReturn(Optional.of(company));
+        @Test
+        @DisplayName("Should create job successfully")
+        void shouldCreateJobSuccessfully() {
 
-        when(jobMapper.toEntity(request))
-                .thenReturn(job);
+            when(
+                    companyRepository
+                            .findByIdAndDeletedFalse(1L))
+                    .thenReturn(
+                            Optional.of(company));
 
-        when(jobSlugService.generate(
-                "Java Backend Developer")).thenReturn("java-backend-developer");
+            when(
+                    jobMapper.toEntity(createRequest))
+                    .thenReturn(job);
 
-        when(jobRepository.save(job))
-                .thenReturn(job);
+            when(
+                    jobSlugService.generate(
+                            "Java Backend Developer"))
+                    .thenReturn(
+                            "java-backend-developer");
 
-        when(jobMapper.toResponse(job))
-                .thenReturn(response);
+            when(
+                    jobRepository.save(job))
+                    .thenReturn(job);
 
-        JobResponse result = jobService.createJob(request);
+            when(
+                    jobMapper.toResponse(job))
+                    .thenReturn(response);
 
-        assertThat(result).isNotNull();
+            JobResponse result = jobService.createJob(
+                    createRequest);
 
-        assertThat(result.getId())
-                .isEqualTo(1L);
+            assertThat(result)
+                    .isNotNull();
 
-        assertThat(result.getSlug())
-                .isEqualTo("java-backend-developer");
+            assertThat(result.getId())
+                    .isEqualTo(1L);
 
-        assertThat(job.getCompany())
-                .isEqualTo(company);
+            assertThat(result.getTitle())
+                    .isEqualTo(
+                            "Java Backend Developer");
 
-        verify(companyRepository)
-                .findByIdAndDeletedFalse(1L);
+            assertThat(result.getSlug())
+                    .isEqualTo(
+                            "java-backend-developer");
 
-        verify(jobValidator)
-                .validateCreate(
-                        request,
-                        company);
+            assertThat(job.getCompany())
+                    .isEqualTo(company);
 
-        verify(jobSlugService)
-                .generate(
-                        "Java Backend Developer");
+            verify(companyRepository)
+                    .findByIdAndDeletedFalse(1L);
 
-        verify(jobRepository)
-                .save(job);
+            verify(jobValidator)
+                    .validateCreate(
+                            createRequest,
+                            company);
+
+            verify(jobSlugService)
+                    .generate(
+                            "Java Backend Developer");
+
+            verify(jobRepository)
+                    .save(job);
+
+            verify(jobMapper)
+                    .toResponse(job);
+        }
+
+        @Test
+        @DisplayName("Should trim title before generating slug")
+        void shouldNormalizeTitleBeforeGeneratingSlug() {
+
+            createRequest.setTitle(
+                    "   Java Backend Developer   ");
+
+            when(
+                    companyRepository
+                            .findByIdAndDeletedFalse(1L))
+                    .thenReturn(
+                            Optional.of(company));
+
+            when(
+                    jobMapper.toEntity(createRequest))
+                    .thenReturn(job);
+
+            when(
+                    jobSlugService.generate(
+                            "Java Backend Developer"))
+                    .thenReturn(
+                            "java-backend-developer");
+
+            when(
+                    jobRepository.save(job))
+                    .thenReturn(job);
+
+            when(
+                    jobMapper.toResponse(job))
+                    .thenReturn(response);
+
+            jobService.createJob(
+                    createRequest);
+
+            assertThat(job.getTitle())
+                    .isEqualTo(
+                            "Java Backend Developer");
+
+            assertThat(job.getSlug())
+                    .isEqualTo(
+                            "java-backend-developer");
+
+            verify(jobSlugService)
+                    .generate(
+                            "Java Backend Developer");
+        }
+
+        @Test
+        @DisplayName("Should throw when company does not exist")
+        void shouldThrowWhenCompanyDoesNotExist() {
+
+            when(
+                    companyRepository
+                            .findByIdAndDeletedFalse(1L))
+                    .thenReturn(
+                            Optional.empty());
+
+            assertThatThrownBy(() -> jobService.createJob(
+                    createRequest))
+                    .isInstanceOf(
+                            ResourceNotFoundException.class)
+                    .hasMessage(
+                            "Company not found.");
+
+            verify(jobRepository, never())
+                    .save(any());
+
+            verifyNoInteractions(jobMapper);
+
+            verifyNoInteractions(
+                    jobSlugService);
+
+            verifyNoInteractions(
+                    jobValidator);
+        }
+
+        @Test
+        @DisplayName("Should stop when business validation fails")
+        void shouldStopWhenValidationFails() {
+
+            when(
+                    companyRepository
+                            .findByIdAndDeletedFalse(1L))
+                    .thenReturn(
+                            Optional.of(company));
+
+            doThrow(
+                    new RuntimeException(
+                            "Business validation failed"))
+                    .when(jobValidator)
+                    .validateCreate(
+                            createRequest,
+                            company);
+
+            assertThatThrownBy(() -> jobService.createJob(
+                    createRequest))
+                    .isInstanceOf(
+                            RuntimeException.class)
+                    .hasMessage(
+                            "Business validation failed");
+
+            verify(jobRepository, never())
+                    .save(any());
+
+            verifyNoInteractions(
+                    jobSlugService);
+        }
     }
 
-    @Test
-    @DisplayName("Should throw when company does not exist")
-    void shouldThrowWhenCompanyDoesNotExist() {
+    @Nested
+    @DisplayName("searchJobs()")
+    class SearchJobsTest {
 
-        when(companyRepository
-                .findByIdAndDeletedFalse(1L))
-                .thenReturn(Optional.empty());
+        @Test
+        @DisplayName("Should return paged jobs")
+        void shouldReturnPagedJobs() {
 
-        assertThatThrownBy(() -> jobService.createJob(request))
-                .isInstanceOf(
-                        ResourceNotFoundException.class)
-                .hasMessage(
-                        "Company not found.");
+            JobSearchRequest request = JobTestFactory.searchRequest();
 
-        verify(jobRepository, never())
-                .save(any());
+            Pageable pageable = PageRequest.of(
+                    0,
+                    10);
 
-        verifyNoInteractions(jobMapper);
+            Page<Job> page = new PageImpl<>(
+                    List.of(job),
+                    pageable,
+                    1);
 
-        verifyNoInteractions(jobSlugService);
+            @SuppressWarnings("unchecked")
+            PagedResponse<JobResponse> expected = mock(PagedResponse.class);
 
-    }
+            when(
+                    jobRepository.findAll(
+                            any(Specification.class),
+                            eq(pageable)))
+                    .thenReturn(page);
 
-    @Test
-    @DisplayName("Should generate slug from normalized title")
-    void shouldGenerateSlugFromNormalizedTitle() {
+            when(
+                    pageMapper.<Job, JobResponse>toPagedResponse(
+                            eq(page),
+                            any()))
+                    .thenReturn(expected);
 
-        request.setTitle(
-                "   Java Backend Developer   ");
+            PagedResponse<JobResponse> result = jobService.searchJobs(
+                    request,
+                    pageable);
 
-        when(companyRepository
-                .findByIdAndDeletedFalse(1L))
-                .thenReturn(Optional.of(company));
+            assertThat(result)
+                    .isSameAs(expected);
 
-        when(jobMapper.toEntity(request))
-                .thenReturn(job);
+            verify(jobRepository)
+                    .findAll(
+                            any(Specification.class),
+                            eq(pageable));
 
-        when(jobSlugService.generate(
-                "Java Backend Developer")).thenReturn(
-                        "java-backend-developer");
+            verify(pageMapper)
+                    .toPagedResponse(
+                            eq(page),
+                            any());
+        }
 
-        when(jobRepository.save(job))
-                .thenReturn(job);
+        @Test
+        @DisplayName("Should return empty paged response")
+        void shouldReturnEmptyPagedResponse() {
 
-        when(jobMapper.toResponse(job))
-                .thenReturn(response);
+            JobSearchRequest request = JobTestFactory.searchRequest();
 
-        jobService.createJob(request);
+            Pageable pageable = PageRequest.of(
+                    0,
+                    10);
 
-        assertThat(job.getTitle())
-                .isEqualTo(
-                        "Java Backend Developer");
+            Page<Job> emptyPage = Page.empty(pageable);
 
-        assertThat(job.getSlug())
-                .isEqualTo(
-                        "java-backend-developer");
+            @SuppressWarnings("unchecked")
+            PagedResponse<JobResponse> expected = mock(PagedResponse.class);
 
-        verify(jobSlugService)
-                .generate(
-                        "Java Backend Developer");
-    }
+            when(
+                    jobRepository.findAll(
+                            any(Specification.class),
+                            eq(pageable)))
+                    .thenReturn(emptyPage);
 
-    @Test
-    @DisplayName("Should propagate validation exception")
-    void shouldPropagateValidationException() {
+            when(
+                    pageMapper.<Job, JobResponse>toPagedResponse(
+                            eq(emptyPage),
+                            any()))
+                    .thenReturn(expected);
 
-        when(companyRepository
-                .findByIdAndDeletedFalse(1L))
-                .thenReturn(Optional.of(company));
+            PagedResponse<JobResponse> result = jobService.searchJobs(
+                    request,
+                    pageable);
 
-        doThrow(
-                new RuntimeException(
-                        "Business validation failed"))
-                .when(jobValidator)
-                .validateCreate(
-                        request,
-                        company);
+            assertThat(result)
+                    .isSameAs(expected);
 
-        assertThatThrownBy(() -> jobService.createJob(request))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage(
-                        "Business validation failed");
+            verify(jobRepository)
+                    .findAll(
+                            any(Specification.class),
+                            eq(pageable));
 
-        verify(jobRepository, never())
-                .save(any());
+            verify(pageMapper)
+                    .toPagedResponse(
+                            eq(emptyPage),
+                            any());
+        }
 
-        verify(jobSlugService, never())
-                .generate(anyString());
+        @Test
+        @DisplayName("Should pass specification and pageable to repository")
+        void shouldPassSpecificationAndPageable() {
+
+            JobSearchRequest request = JobTestFactory.keywordSearch(
+                    "Java");
+
+            Pageable pageable = PageRequest.of(
+                    1,
+                    5);
+
+            Page<Job> page = new PageImpl<>(
+                    List.of(job),
+                    pageable,
+                    6);
+
+            @SuppressWarnings("unchecked")
+            PagedResponse<JobResponse> expected = mock(PagedResponse.class);
+
+            when(
+                    jobRepository.findAll(
+                            any(Specification.class),
+                            eq(pageable)))
+                    .thenReturn(page);
+
+            when(
+                    pageMapper.<Job, JobResponse>toPagedResponse(
+                            eq(page),
+                            any()))
+                    .thenReturn(expected);
+
+            jobService.searchJobs(
+                    request,
+                    pageable);
+
+            ArgumentCaptor<Specification<Job>> specificationCaptor = ArgumentCaptor.forClass(
+                    Specification.class);
+
+            verify(jobRepository)
+                    .findAll(
+                            specificationCaptor.capture(),
+                            eq(pageable));
+
+            assertThat(
+                    specificationCaptor.getValue())
+                    .isNotNull();
+        }
     }
 }
