@@ -4,6 +4,7 @@ import com.example.qltd.common.dto.ApiResponse;
 import com.example.qltd.common.dto.PagedResponse;
 import com.example.qltd.job.dto.request.CreateJobRequest;
 import com.example.qltd.job.dto.request.JobSearchRequest;
+import com.example.qltd.job.dto.request.UpdateJobRequest;
 import com.example.qltd.job.dto.response.JobResponse;
 import com.example.qltd.job.service.JobService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -113,6 +114,34 @@ public class JobController {
                 ApiResponse.<JobResponse>builder()
                         .success(true)
                         .message("Job retrieved successfully")
+                        .data(response)
+                        .build());
+    }
+
+    @Operation(summary = "Update job", description = "Update an existing job. Closed, expired and archived jobs cannot be updated.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Job updated successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid request or business rule violation"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Authentication required"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Access denied"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Job not found"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Duplicate slug")
+    })
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")
+    public ResponseEntity<ApiResponse<JobResponse>> updateJob(
+            @Parameter(description = "Job ID", example = "1", required = true) @PathVariable Long id,
+
+            @Valid @RequestBody UpdateJobRequest request) {
+
+        JobResponse response = jobService.updateJob(
+                id,
+                request);
+
+        return ResponseEntity.ok(
+                ApiResponse.<JobResponse>builder()
+                        .success(true)
+                        .message("Job updated successfully")
                         .data(response)
                         .build());
     }

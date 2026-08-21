@@ -33,6 +33,8 @@ public class JobValidator {
             Job job,
             UpdateJobRequest request) {
 
+        validateUpdatableStatus(job);
+
         if (request.getSalaryMin() != null
                 || request.getSalaryMax() != null) {
 
@@ -44,13 +46,14 @@ public class JobValidator {
                     ? request.getSalaryMax()
                     : job.getSalaryMax();
 
-            validateSalary(salaryMin, salaryMax);
+            validateSalary(
+                    salaryMin,
+                    salaryMax);
         }
 
         if (request.getDeadline() != null) {
-
-            validateDeadline(request.getDeadline());
-
+            validateDeadline(
+                    request.getDeadline());
         }
     }
 
@@ -124,6 +127,18 @@ public class JobValidator {
 
             throw new BusinessRuleException(
                     "Cannot create job for a deleted company.");
+        }
+    }
+
+    private void validateUpdatableStatus(
+            Job job) {
+
+        if (job.getStatus() == JobStatus.CLOSED
+                || job.getStatus() == JobStatus.EXPIRED
+                || job.getStatus() == JobStatus.ARCHIVED) {
+
+            throw new BusinessRuleException(
+                    "Job cannot be updated in its current status.");
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.example.qltd.job.mapper;
 
 import com.example.qltd.job.dto.request.CreateJobRequest;
+import com.example.qltd.job.dto.request.UpdateJobRequest;
 import com.example.qltd.job.dto.response.JobResponse;
 import com.example.qltd.job.entity.Job;
 import com.example.qltd.job.enums.JobStatus;
@@ -55,5 +56,66 @@ public class JobMapper {
                 .createdAt(job.getCreatedAt())
                 .updatedAt(job.getUpdatedAt())
                 .build();
+    }
+
+    public void updateEntity(
+            Job job,
+            UpdateJobRequest request) {
+
+        if (request.getTitle() != null) {
+            job.setTitle(request.getTitle().trim());
+        }
+
+        if (request.getDescription() != null) {
+            job.setDescription(request.getDescription());
+        }
+
+        if (request.getRequirements() != null) {
+            job.setRequirements(request.getRequirements());
+        }
+
+        if (request.getResponsibilities() != null) {
+            job.setResponsibilities(request.getResponsibilities());
+        }
+
+        if (request.getSalaryMin() != null) {
+            job.setSalaryMin(request.getSalaryMin());
+        }
+
+        if (request.getSalaryMax() != null) {
+            job.setSalaryMax(request.getSalaryMax());
+        }
+
+        if (request.getCurrency() != null) {
+            job.setCurrency(
+                    request.getCurrency()
+                            .trim()
+                            .toUpperCase());
+        }
+
+        if (request.getLocation() != null) {
+            job.setLocation(
+                    request.getLocation().trim());
+        }
+
+        if (request.getWorkingType() != null) {
+            job.setWorkingType(
+                    request.getWorkingType());
+        }
+
+        if (request.getExperienceLevel() != null) {
+            job.setExperienceLevel(
+                    request.getExperienceLevel());
+        }
+
+        if (request.getEmploymentType() != null) {
+            job.setEmploymentType(
+                    request.getEmploymentType());
+        }
+
+        if (request.getDeadline() != null) {
+            job.setDeadline(
+                    request.getDeadline());
+        }
     }
 }

@@ -1,12 +1,14 @@
 package com.example.qltd.job.service;
 
 import com.example.qltd.common.dto.PagedResponse;
+import com.example.qltd.common.exception.BusinessRuleException;
 import com.example.qltd.common.exception.ResourceNotFoundException;
 import com.example.qltd.common.mapper.PageMapper;
 import com.example.qltd.company.entity.Company;
 import com.example.qltd.company.repository.CompanyRepository;
 import com.example.qltd.job.dto.request.CreateJobRequest;
 import com.example.qltd.job.dto.request.JobSearchRequest;
+import com.example.qltd.job.dto.request.UpdateJobRequest;
 import com.example.qltd.job.dto.response.JobResponse;
 import com.example.qltd.job.entity.Job;
 import com.example.qltd.job.enums.JobStatus;
@@ -34,6 +36,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -682,6 +685,281 @@ class JobServiceImplTest {
             verify(
                     jobRepository)
                     .findByIdAndDeletedFalse(1L);
+        }
+    }
+
+    @Nested
+    @DisplayName("updateJob()")
+    class UpdateJobTest {
+
+        private UpdateJobRequest updateRequest;
+
+        @BeforeEach
+        void setUpUpdateRequest() {
+
+            updateRequest = JobTestFactory.updateRequest();
+
+            job.setStatus(
+                    JobStatus.DRAFT);
+        }
+
+        @Test
+        @DisplayName("Should update DRAFT job successfully")
+        void shouldUpdateDraftJobSuccessfully() {
+
+            when(
+                    jobRepository.findByIdAndDeletedFalse(1L))
+                    .thenReturn(
+                            Optional.of(job));
+
+            when(
+                    jobRepository.save(job))
+                    .thenReturn(job);
+
+            when(
+                    jobMapper.toResponse(job))
+                    .thenReturn(response);
+
+            JobResponse result = jobService.updateJob(
+                    1L,
+                    updateRequest);
+
+            assertThat(result)
+                    .isSameAs(response);
+
+            verify(jobValidator)
+                    .validateUpdate(
+                            job,
+                            updateRequest);
+
+            verify(jobMapper)
+                    .updateEntity(
+                            job,
+                            updateRequest);
+
+            verify(jobRepository)
+                    .save(job);
+        }
+
+        @Test
+        @DisplayName("Should regenerate slug when title changes")
+        void shouldRegenerateSlugWhenTitleChanges() {
+
+            job.setTitle(
+                    "Java Backend Developer");
+
+            updateRequest.setTitle(
+                    "Senior Java Backend Developer");
+
+            when(
+                    jobRepository.findByIdAndDeletedFalse(1L))
+                    .thenReturn(
+                            Optional.of(job));
+
+            when(
+                    jobSlugService.generate(
+                            "Senior Java Backend Developer",
+                            1L))
+                    .thenReturn(
+                            "senior-java-backend-developer");
+
+            when(
+                    jobRepository.save(job))
+                    .thenReturn(job);
+
+            when(
+                    jobMapper.toResponse(job))
+                    .thenReturn(response);
+
+            jobService.updateJob(
+                    1L,
+                    updateRequest);
+
+            assertThat(job.getSlug())
+                    .isEqualTo(
+                            "senior-java-backend-developer");
+
+            verify(jobSlugService)
+                    .generate(
+                            "Senior Java Backend Developer",
+                            1L);
+        }
+
+        @Test
+        @DisplayName("Should keep slug when title does not change")
+        void shouldKeepSlugWhenTitleDoesNotChange() {
+
+            job.setTitle(
+                    "Java Backend Developer");
+
+            job.setSlug(
+                    "java-backend-developer");
+
+            updateRequest.setTitle(
+                    "Java Backend Developer");
+
+            when(
+                    jobRepository.findByIdAndDeletedFalse(1L))
+                    .thenReturn(
+                            Optional.of(job));
+
+            when(
+                    jobRepository.save(job))
+                    .thenReturn(job);
+
+            when(
+                    jobMapper.toResponse(job))
+                    .thenReturn(response);
+
+            jobService.updateJob(
+                    1L,
+                    updateRequest);
+
+            assertThat(job.getSlug())
+                    .isEqualTo(
+                            "java-backend-developer");
+
+            verify(
+                    jobSlugService,
+                    never())
+                    .generate(
+                            anyString(),
+                            anyLong());
+        }
+
+        @Test
+        @DisplayName("Should throw when job does not exist")
+        void shouldThrowWhenJobDoesNotExist() {
+
+            when(
+                    jobRepository.findByIdAndDeletedFalse(999L))
+                    .thenReturn(
+                            Optional.empty());
+
+            assertThatThrownBy(() -> jobService.updateJob(
+                    999L,
+                    updateRequest))
+                    .isInstanceOf(
+                            ResourceNotFoundException.class)
+                    .hasMessage(
+                            "Job not found.");
+
+            verify(
+                    jobValidator,
+                    never())
+                    .validateUpdate(
+                            any(),
+                            any());
+
+            verify(
+                    jobRepository,
+                    never())
+                    .save(any());
+        }
+
+        @Test
+        @DisplayName("Should reject CLOSED job")
+        void shouldRejectClosedJob() {
+
+            job.setStatus(
+                    JobStatus.CLOSED);
+
+            when(
+                    jobRepository.findByIdAndDeletedFalse(1L))
+                    .thenReturn(
+                            Optional.of(job));
+
+            doThrow(
+                    new BusinessRuleException(
+                            "Job cannot be updated in its current status."))
+                    .when(jobValidator)
+                    .validateUpdate(
+                            job,
+                            updateRequest);
+
+            assertThatThrownBy(() -> jobService.updateJob(
+                    1L,
+                    updateRequest))
+                    .isInstanceOf(
+                            BusinessRuleException.class)
+                    .hasMessage(
+                            "Job cannot be updated in its current status.");
+
+            verify(
+                    jobRepository,
+                    never())
+                    .save(any());
+
+            verify(
+                    jobSlugService,
+                    never())
+                    .generate(
+                            anyString(),
+                            anyLong());
+        }
+
+        @Test
+        @DisplayName("Should reject EXPIRED job")
+        void shouldRejectExpiredJob() {
+
+            job.setStatus(
+                    JobStatus.EXPIRED);
+
+            when(
+                    jobRepository.findByIdAndDeletedFalse(1L))
+                    .thenReturn(
+                            Optional.of(job));
+
+            doThrow(
+                    new BusinessRuleException(
+                            "Job cannot be updated in its current status."))
+                    .when(jobValidator)
+                    .validateUpdate(
+                            job,
+                            updateRequest);
+
+            assertThatThrownBy(() -> jobService.updateJob(
+                    1L,
+                    updateRequest))
+                    .isInstanceOf(
+                            BusinessRuleException.class);
+
+            verify(
+                    jobRepository,
+                    never())
+                    .save(any());
+        }
+
+        @Test
+        @DisplayName("Should reject ARCHIVED job")
+        void shouldRejectArchivedJob() {
+
+            job.setStatus(
+                    JobStatus.ARCHIVED);
+
+            when(
+                    jobRepository.findByIdAndDeletedFalse(1L))
+                    .thenReturn(
+                            Optional.of(job));
+
+            doThrow(
+                    new BusinessRuleException(
+                            "Job cannot be updated in its current status."))
+                    .when(jobValidator)
+                    .validateUpdate(
+                            job,
+                            updateRequest);
+
+            assertThatThrownBy(() -> jobService.updateJob(
+                    1L,
+                    updateRequest))
+                    .isInstanceOf(
+                            BusinessRuleException.class);
+
+            verify(
+                    jobRepository,
+                    never())
+                    .save(any());
         }
     }
 }

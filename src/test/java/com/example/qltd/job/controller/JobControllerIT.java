@@ -3,6 +3,7 @@ package com.example.qltd.job.controller;
 import com.example.qltd.company.entity.Company;
 import com.example.qltd.company.repository.CompanyRepository;
 import com.example.qltd.config.AbstractIntegrationTest;
+import com.example.qltd.job.dto.request.UpdateJobRequest;
 import com.example.qltd.job.entity.Job;
 import com.example.qltd.job.enums.EmploymentType;
 import com.example.qltd.job.enums.ExperienceLevel;
@@ -15,10 +16,15 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @DisplayName("Job Controller Integration Test")
 class JobControllerIT
@@ -1126,6 +1132,357 @@ class JobControllerIT
                     get(
                             "/api/jobs/{id}",
                             1L))
+                    .andExpect(
+                            status().isUnauthorized());
+        }
+    }
+
+    @Nested
+    @DisplayName("PUT /api/jobs/{id}")
+    class UpdateJobTest {
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Recruiter should update DRAFT job")
+        void recruiterShouldUpdateDraftJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Java Developer",
+                    "java-developer",
+                    openAi,
+                    JobStatus.DRAFT);
+
+            UpdateJobRequest request = JobTestFactory.updateRequest();
+
+            mockMvc.perform(
+                    put(
+                            "/api/jobs/{id}",
+                            job.getId())
+                            .contentType(
+                                    MediaType.APPLICATION_JSON)
+                            .content(
+                                    objectMapper.writeValueAsString(
+                                            request)))
+                    .andExpect(
+                            status().isOk())
+                    .andExpect(
+                            jsonPath("$.success")
+                                    .value(true))
+                    .andExpect(
+                            jsonPath("$.data.title")
+                                    .value(
+                                            "Senior Java Backend Developer"));
+
+            Job updated = jobRepository.findById(
+                    job.getId()).orElseThrow();
+
+            assertThat(updated.getTitle())
+                    .isEqualTo(
+                            "Senior Java Backend Developer");
+
+            assertThat(updated.getSlug())
+                    .isEqualTo(
+                            "senior-java-backend-developer");
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Recruiter should update PUBLISHED job")
+        void recruiterShouldUpdatePublishedJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Java Developer",
+                    "java-developer",
+                    openAi,
+                    JobStatus.PUBLISHED);
+
+            UpdateJobRequest request = new UpdateJobRequest();
+
+            request.setDescription(
+                    "Updated published job description.");
+
+            mockMvc.perform(
+                    put(
+                            "/api/jobs/{id}",
+                            job.getId())
+                            .contentType(
+                                    MediaType.APPLICATION_JSON)
+                            .content(
+                                    objectMapper.writeValueAsString(
+                                            request)))
+                    .andExpect(
+                            status().isOk());
+
+            Job updated = jobRepository.findById(
+                    job.getId()).orElseThrow();
+
+            assertThat(updated.getDescription())
+                    .isEqualTo(
+                            "Updated published job description.");
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Should return 404 for non-existing job")
+        void shouldReturn404ForNonExistingJobOnUpdate()
+                throws Exception {
+
+            UpdateJobRequest request = JobTestFactory.updateRequest();
+
+            mockMvc.perform(
+                    put(
+                            "/api/jobs/{id}",
+                            999999L)
+                            .contentType(
+                                    MediaType.APPLICATION_JSON)
+                            .content(
+                                    objectMapper.writeValueAsString(
+                                            request)))
+                    .andExpect(
+                            status().isNotFound())
+                    .andExpect(
+                            jsonPath("$.error")
+                                    .value(
+                                            "RESOURCE_NOT_FOUND"));
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Should reject update for CLOSED job")
+        void shouldRejectUpdateForClosedJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Closed Job",
+                    "closed-job",
+                    openAi,
+                    JobStatus.CLOSED);
+
+            UpdateJobRequest request = JobTestFactory.updateRequest();
+
+            mockMvc.perform(
+                    put(
+                            "/api/jobs/{id}",
+                            job.getId())
+                            .contentType(
+                                    MediaType.APPLICATION_JSON)
+                            .content(
+                                    objectMapper.writeValueAsString(
+                                            request)))
+                    .andExpect(
+                            status().isBadRequest())
+                    .andExpect(
+                            jsonPath("$.error")
+                                    .value(
+                                            "BUSINESS_RULE_ERROR"));
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Should reject update for EXPIRED job")
+        void shouldRejectUpdateForExpiredJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Expired Job",
+                    "expired-job",
+                    openAi,
+                    JobStatus.EXPIRED);
+
+            UpdateJobRequest request = JobTestFactory.updateRequest();
+
+            mockMvc.perform(
+                    put(
+                            "/api/jobs/{id}",
+                            job.getId())
+                            .contentType(
+                                    MediaType.APPLICATION_JSON)
+                            .content(
+                                    objectMapper.writeValueAsString(
+                                            request)))
+                    .andExpect(
+                            status().isBadRequest());
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Should reject update for ARCHIVED job")
+        void shouldRejectUpdateForArchivedJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Archived Job",
+                    "archived-job",
+                    openAi,
+                    JobStatus.ARCHIVED);
+
+            UpdateJobRequest request = JobTestFactory.updateRequest();
+
+            mockMvc.perform(
+                    put(
+                            "/api/jobs/{id}",
+                            job.getId())
+                            .contentType(
+                                    MediaType.APPLICATION_JSON)
+                            .content(
+                                    objectMapper.writeValueAsString(
+                                            request)))
+                    .andExpect(
+                            status().isBadRequest());
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Should keep slug when title does not change")
+        void shouldKeepSlugWhenTitleDoesNotChange()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Java Developer",
+                    "java-developer",
+                    openAi,
+                    JobStatus.DRAFT);
+
+            UpdateJobRequest request = new UpdateJobRequest();
+
+            request.setTitle(
+                    "Java Developer");
+
+            request.setDescription(
+                    "Updated description.");
+
+            mockMvc.perform(
+                    put(
+                            "/api/jobs/{id}",
+                            job.getId())
+                            .contentType(
+                                    MediaType.APPLICATION_JSON)
+                            .content(
+                                    objectMapper.writeValueAsString(
+                                            request)))
+                    .andExpect(
+                            status().isOk());
+
+            Job updated = jobRepository.findById(
+                    job.getId()).orElseThrow();
+
+            assertThat(updated.getSlug())
+                    .isEqualTo(
+                            "java-developer");
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Should validate salary range when updating")
+        void shouldValidateSalaryRange()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Java Developer",
+                    "java-developer",
+                    openAi,
+                    JobStatus.DRAFT);
+
+            UpdateJobRequest request = new UpdateJobRequest();
+
+            request.setSalaryMin(
+                    new BigDecimal("40000000"));
+
+            request.setSalaryMax(
+                    new BigDecimal("20000000"));
+
+            mockMvc.perform(
+                    put(
+                            "/api/jobs/{id}",
+                            job.getId())
+                            .contentType(
+                                    MediaType.APPLICATION_JSON)
+                            .content(
+                                    objectMapper.writeValueAsString(
+                                            request)))
+                    .andExpect(
+                            status().isBadRequest())
+                    .andExpect(
+                            jsonPath("$.error")
+                                    .value(
+                                            "BUSINESS_RULE_ERROR"));
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Should reject past deadline")
+        void shouldRejectPastDeadline()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Java Developer",
+                    "java-developer",
+                    openAi,
+                    JobStatus.DRAFT);
+
+            UpdateJobRequest request = new UpdateJobRequest();
+
+            request.setDeadline(
+                    LocalDate.now().minusDays(1));
+
+            mockMvc.perform(
+                    put(
+                            "/api/jobs/{id}",
+                            job.getId())
+                            .contentType(
+                                    MediaType.APPLICATION_JSON)
+                            .content(
+                                    objectMapper.writeValueAsString(
+                                            request)))
+                    .andExpect(
+                            status().isBadRequest());
+        }
+
+        @Test
+        @WithMockUser(username = "candidate@test.com", roles = "CANDIDATE")
+        @DisplayName("Candidate should not update job")
+        void candidateShouldNotUpdateJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Java Developer",
+                    "java-developer",
+                    openAi,
+                    JobStatus.DRAFT);
+
+            UpdateJobRequest request = JobTestFactory.updateRequest();
+
+            mockMvc.perform(
+                    put(
+                            "/api/jobs/{id}",
+                            job.getId())
+                            .contentType(
+                                    MediaType.APPLICATION_JSON)
+                            .content(
+                                    objectMapper.writeValueAsString(
+                                            request)))
+                    .andExpect(
+                            status().isForbidden());
+        }
+
+        @Test
+        @DisplayName("Should return 401 when updating without authentication")
+        void shouldReturn401WithoutAuthentication()
+                throws Exception {
+
+            UpdateJobRequest request = JobTestFactory.updateRequest();
+
+            mockMvc.perform(
+                    put(
+                            "/api/jobs/{id}",
+                            1L)
+                            .contentType(
+                                    MediaType.APPLICATION_JSON)
+                            .content(
+                                    objectMapper.writeValueAsString(
+                                            request)))
                     .andExpect(
                             status().isUnauthorized());
         }

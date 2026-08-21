@@ -40,7 +40,10 @@ public class JobSlugServiceImpl implements JobSlugService {
             }
 
             if (excludeJobId != null
-                    && existingJob.get().getId().equals(excludeJobId)) {
+                    && existingJob.get()
+                            .getId()
+                            .equals(excludeJobId)) {
+
                 return slug;
             }
 

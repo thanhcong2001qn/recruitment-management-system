@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.qltd.common.dto.PagedResponse;
 import com.example.qltd.common.mapper.PageMapper;
 import com.example.qltd.job.dto.request.JobSearchRequest;
+import com.example.qltd.job.dto.request.UpdateJobRequest;
 import com.example.qltd.job.specification.JobSpecification;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -108,5 +109,44 @@ public class JobServiceImpl implements JobService {
         }
 
         return jobMapper.toResponse(job);
+    }
+
+    @Override
+    public JobResponse updateJob(
+            Long id,
+            UpdateJobRequest request) {
+
+        Job job = jobRepository
+                .findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Job not found."));
+
+        jobValidator.validateUpdate(
+                job,
+                request);
+
+        String oldTitle = job.getTitle();
+
+        jobMapper.updateEntity(
+                job,
+                request);
+
+        if (request.getTitle() != null
+                && !request.getTitle()
+                        .trim()
+                        .equals(oldTitle)) {
+
+            String normalizedTitle = request.getTitle().trim();
+
+            job.setSlug(
+                    jobSlugService.generate(
+                            normalizedTitle,
+                            job.getId()));
+        }
+
+        Job updatedJob = jobRepository.save(job);
+
+        return jobMapper.toResponse(
+                updatedJob);
     }
 }

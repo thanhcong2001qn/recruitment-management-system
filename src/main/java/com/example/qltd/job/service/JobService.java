@@ -4,6 +4,7 @@ import org.springframework.data.domain.Pageable;
 import com.example.qltd.common.dto.PagedResponse;
 import com.example.qltd.job.dto.request.CreateJobRequest;
 import com.example.qltd.job.dto.request.JobSearchRequest;
+import com.example.qltd.job.dto.request.UpdateJobRequest;
 import com.example.qltd.job.dto.response.JobResponse;
 
 public interface JobService {
@@ -18,4 +19,8 @@ public interface JobService {
     JobResponse getJobById(
             Long id,
             boolean publicSearch);
+
+    JobResponse updateJob(
+            Long id,
+            UpdateJobRequest request);
 }
