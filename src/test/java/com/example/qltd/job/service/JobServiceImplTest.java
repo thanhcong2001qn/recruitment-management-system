@@ -962,4 +962,142 @@ class JobServiceImplTest {
                     .save(any());
         }
     }
+
+    @Nested
+    @DisplayName("deleteJob()")
+    class DeleteJobTest {
+
+        @Test
+        @DisplayName("Should soft delete DRAFT job")
+        void shouldSoftDeleteDraftJob() {
+
+            job.setStatus(
+                    JobStatus.DRAFT);
+
+            job.setDeleted(false);
+
+            when(
+                    jobRepository.findByIdAndDeletedFalse(1L))
+                    .thenReturn(
+                            Optional.of(job));
+
+            when(
+                    jobRepository.save(job))
+                    .thenReturn(job);
+
+            jobService.deleteJob(1L);
+
+            assertThat(job.getDeleted())
+                    .isTrue();
+
+            verify(jobValidator)
+                    .validateDelete(job);
+
+            verify(jobRepository)
+                    .save(job);
+        }
+
+        @Test
+        @DisplayName("Should soft delete CLOSED job")
+        void shouldSoftDeleteClosedJob() {
+
+            job.setStatus(
+                    JobStatus.CLOSED);
+
+            when(
+                    jobRepository.findByIdAndDeletedFalse(1L))
+                    .thenReturn(
+                            Optional.of(job));
+
+            when(
+                    jobRepository.save(job))
+                    .thenReturn(job);
+
+            jobService.deleteJob(1L);
+
+            assertThat(job.getDeleted())
+                    .isTrue();
+
+            verify(jobRepository)
+                    .save(job);
+        }
+
+        @Test
+        @DisplayName("Should reject deleting PUBLISHED job")
+        void shouldRejectDeletingPublishedJob() {
+
+            job.setStatus(
+                    JobStatus.PUBLISHED);
+
+            when(
+                    jobRepository.findByIdAndDeletedFalse(1L))
+                    .thenReturn(
+                            Optional.of(job));
+
+            doThrow(
+                    new BusinessRuleException(
+                            "Published job must be closed before deletion."))
+                    .when(jobValidator)
+                    .validateDelete(job);
+
+            assertThatThrownBy(() -> jobService.deleteJob(1L))
+                    .isInstanceOf(
+                            BusinessRuleException.class)
+                    .hasMessage(
+                            "Published job must be closed before deletion.");
+
+            assertThat(job.getDeleted())
+                    .isFalse();
+
+            verify(
+                    jobRepository,
+                    never())
+                    .save(any());
+        }
+
+        @Test
+        @DisplayName("Should throw when job does not exist")
+        void shouldThrowWhenJobDoesNotExist() {
+
+            when(
+                    jobRepository.findByIdAndDeletedFalse(999L))
+                    .thenReturn(
+                            Optional.empty());
+
+            assertThatThrownBy(() -> jobService.deleteJob(999L))
+                    .isInstanceOf(
+                            ResourceNotFoundException.class)
+                    .hasMessage(
+                            "Job not found.");
+
+            verify(
+                    jobRepository,
+                    never())
+                    .save(any());
+
+            verify(
+                    jobValidator,
+                    never())
+                    .validateDelete(any());
+        }
+
+        @Test
+        @DisplayName("Should not delete already deleted job")
+        void shouldNotDeleteAlreadyDeletedJob() {
+
+            when(
+                    jobRepository.findByIdAndDeletedFalse(1L))
+                    .thenReturn(
+                            Optional.empty());
+
+            assertThatThrownBy(() -> jobService.deleteJob(1L))
+                    .isInstanceOf(
+                            ResourceNotFoundException.class);
+
+            verify(
+                    jobRepository,
+                    never())
+                    .save(any());
+        }
+    }
 }

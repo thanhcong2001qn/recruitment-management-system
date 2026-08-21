@@ -149,4 +149,19 @@ public class JobServiceImpl implements JobService {
         return jobMapper.toResponse(
                 updatedJob);
     }
+
+    @Override
+    public void deleteJob(Long id) {
+
+        Job job = jobRepository
+                .findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Job not found."));
+
+        jobValidator.validateDelete(job);
+
+        job.setDeleted(true);
+
+        jobRepository.save(job);
+    }
 }

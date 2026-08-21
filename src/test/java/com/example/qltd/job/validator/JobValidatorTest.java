@@ -6,6 +6,8 @@ import com.example.qltd.job.dto.request.CreateJobRequest;
 import com.example.qltd.job.dto.request.UpdateJobRequest;
 import com.example.qltd.job.entity.Job;
 import com.example.qltd.job.enums.JobStatus;
+import com.example.qltd.job.support.JobTestFactory;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -382,6 +384,75 @@ class JobValidatorTest {
             job.setDeadline(LocalDate.now());
 
             assertThatCode(() -> jobValidator.validatePublish(job)).doesNotThrowAnyException();
+        }
+    }
+
+    @Nested
+    @DisplayName("validateDelete()")
+    class ValidateDeleteTest {
+
+        @Test
+        @DisplayName("Should allow deleting DRAFT job")
+        void shouldAllowDeletingDraftJob() {
+
+            Job job = JobTestFactory.draftJob(
+                    activeCompany);
+
+            assertThatCode(() -> jobValidator.validateDelete(job)).doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("Should reject deleting PUBLISHED job")
+        void shouldRejectDeletingPublishedJob() {
+
+            Job job = JobTestFactory.job(
+                    activeCompany);
+
+            job.setStatus(
+                    JobStatus.PUBLISHED);
+
+            assertThatThrownBy(() -> jobValidator.validateDelete(job))
+                    .isInstanceOf(
+                            BusinessRuleException.class)
+                    .hasMessage(
+                            "Published job must be closed before deletion.");
+        }
+
+        @Test
+        @DisplayName("Should allow deleting CLOSED job")
+        void shouldAllowDeletingClosedJob() {
+
+            Job job = JobTestFactory.closedJob(
+                    activeCompany);
+
+            assertThatCode(() -> jobValidator.validateDelete(job)).doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("Should allow deleting EXPIRED job")
+        void shouldAllowDeletingExpiredJob() {
+
+            Job job = JobTestFactory.expiredJob(
+                    activeCompany);
+
+            assertThatCode(() -> jobValidator.validateDelete(job)).doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("Should reject deleting ARCHIVED job")
+        void shouldRejectDeletingArchivedJob() {
+
+            Job job = JobTestFactory.job(
+                    activeCompany);
+
+            job.setStatus(
+                    JobStatus.ARCHIVED);
+
+            assertThatThrownBy(() -> jobValidator.validateDelete(job))
+                    .isInstanceOf(
+                            BusinessRuleException.class)
+                    .hasMessage(
+                            "Archived job cannot be deleted.");
         }
     }
 }

@@ -23,4 +23,6 @@ public interface JobService {
     JobResponse updateJob(
             Long id,
             UpdateJobRequest request);
+
+    void deleteJob(Long id);
 }

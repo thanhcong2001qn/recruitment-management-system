@@ -141,4 +141,19 @@ public class JobValidator {
                     "Job cannot be updated in its current status.");
         }
     }
+
+    public void validateDelete(Job job) {
+
+        if (job.getStatus() == JobStatus.PUBLISHED) {
+
+            throw new BusinessRuleException(
+                    "Published job must be closed before deletion.");
+        }
+
+        if (job.getStatus() == JobStatus.ARCHIVED) {
+
+            throw new BusinessRuleException(
+                    "Archived job cannot be deleted.");
+        }
+    }
 }

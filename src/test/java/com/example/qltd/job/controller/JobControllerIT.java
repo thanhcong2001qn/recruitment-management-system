@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -1485,6 +1486,210 @@ class JobControllerIT
                                             request)))
                     .andExpect(
                             status().isUnauthorized());
+        }
+    }
+
+    @Nested
+    @DisplayName("DELETE /api/jobs/{id}")
+    class DeleteJobTest {
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Recruiter should soft delete DRAFT job")
+        void recruiterShouldSoftDeleteDraftJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Draft Job",
+                    "draft-job",
+                    openAi,
+                    JobStatus.DRAFT);
+
+            mockMvc.perform(
+                    delete(
+                            "/api/jobs/{id}",
+                            job.getId()))
+                    .andExpect(
+                            status().isOk())
+                    .andExpect(
+                            jsonPath("$.success")
+                                    .value(true))
+                    .andExpect(
+                            jsonPath("$.message")
+                                    .value(
+                                            "Job deleted successfully"));
+
+            Job deleted = jobRepository.findById(
+                    job.getId()).orElseThrow();
+
+            assertThat(deleted.getDeleted())
+                    .isTrue();
+        }
+
+        @Test
+        @WithMockUser(username = "admin@test.com", roles = "ADMIN")
+        @DisplayName("Admin should soft delete CLOSED job")
+        void adminShouldSoftDeleteClosedJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Closed Job",
+                    "closed-job",
+                    openAi,
+                    JobStatus.CLOSED);
+
+            mockMvc.perform(
+                    delete(
+                            "/api/jobs/{id}",
+                            job.getId()))
+                    .andExpect(
+                            status().isOk());
+
+            Job deleted = jobRepository.findById(
+                    job.getId()).orElseThrow();
+
+            assertThat(deleted.getDeleted())
+                    .isTrue();
+
+            assertThat(deleted.getStatus())
+                    .isEqualTo(
+                            JobStatus.CLOSED);
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Should reject deleting PUBLISHED job")
+        void shouldRejectDeletingPublishedJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Published Job",
+                    "published-job",
+                    openAi,
+                    JobStatus.PUBLISHED);
+
+            mockMvc.perform(
+                    delete(
+                            "/api/jobs/{id}",
+                            job.getId()))
+                    .andExpect(
+                            status().isBadRequest())
+                    .andExpect(
+                            jsonPath("$.error")
+                                    .value(
+                                            "BUSINESS_RULE_ERROR"));
+
+            Job unchanged = jobRepository.findById(
+                    job.getId()).orElseThrow();
+
+            assertThat(unchanged.getDeleted())
+                    .isFalse();
+        }
+
+        @Test
+        @WithMockUser(username = "admin@test.com", roles = "ADMIN")
+        @DisplayName("Should reject deleting ARCHIVED job")
+        void shouldRejectDeletingArchivedJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Archived Job",
+                    "archived-job",
+                    openAi,
+                    JobStatus.ARCHIVED);
+
+            mockMvc.perform(
+                    delete(
+                            "/api/jobs/{id}",
+                            job.getId()))
+                    .andExpect(
+                            status().isBadRequest());
+
+            Job unchanged = jobRepository.findById(
+                    job.getId()).orElseThrow();
+
+            assertThat(unchanged.getDeleted())
+                    .isFalse();
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Should return 404 when deleting non-existing job")
+        void shouldReturn404WhenDeletingNonExistingJob()
+                throws Exception {
+
+            mockMvc.perform(
+                    delete(
+                            "/api/jobs/{id}",
+                            999999L))
+                    .andExpect(
+                            status().isNotFound())
+                    .andExpect(
+                            jsonPath("$.error")
+                                    .value(
+                                            "RESOURCE_NOT_FOUND"));
+        }
+
+        @Test
+        @WithMockUser(username = "candidate@test.com", roles = "CANDIDATE")
+        @DisplayName("Candidate should not delete job")
+        void candidateShouldNotDeleteJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Draft Job",
+                    "candidate-draft-job",
+                    openAi,
+                    JobStatus.DRAFT);
+
+            mockMvc.perform(
+                    delete(
+                            "/api/jobs/{id}",
+                            job.getId()))
+                    .andExpect(
+                            status().isForbidden());
+
+            Job unchanged = jobRepository.findById(
+                    job.getId()).orElseThrow();
+
+            assertThat(unchanged.getDeleted())
+                    .isFalse();
+        }
+
+        @Test
+        @DisplayName("Should return 401 without authentication")
+        void shouldReturn401WithoutAuthentication()
+                throws Exception {
+
+            mockMvc.perform(
+                    delete(
+                            "/api/jobs/{id}",
+                            1L))
+                    .andExpect(
+                            status().isUnauthorized());
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Should return 404 when deleting already deleted job")
+        void shouldReturn404WhenDeletingAlreadyDeletedJob()
+                throws Exception {
+
+            Job job = JobTestFactory.deletedJob(
+                    openAi);
+
+            job.setId(null);
+            job.setTitle("Already Deleted");
+            job.setSlug("already-deleted");
+
+            job = jobRepository.save(job);
+
+            mockMvc.perform(
+                    delete(
+                            "/api/jobs/{id}",
+                            job.getId()))
+                    .andExpect(
+                            status().isNotFound());
         }
     }
 }

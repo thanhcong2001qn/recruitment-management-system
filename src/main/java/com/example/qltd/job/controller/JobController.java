@@ -145,4 +145,26 @@ public class JobController {
                         .data(response)
                         .build());
     }
+
+    @Operation(summary = "Delete job", description = "Soft delete a job. Published jobs must be closed before deletion.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Job deleted successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Job cannot be deleted in its current status"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Authentication required"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Only ADMIN or RECRUITER can delete jobs"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Job not found")
+    })
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")
+    public ResponseEntity<ApiResponse<Void>> deleteJob(
+            @Parameter(description = "Job ID", example = "1", required = true) @PathVariable Long id) {
+
+        jobService.deleteJob(id);
+
+        return ResponseEntity.ok(
+                ApiResponse.<Void>builder()
+                        .success(true)
+                        .message("Job deleted successfully")
+                        .build());
+    }
 }
