@@ -1,10 +1,13 @@
 package com.example.qltd.job.repository;
 
 import com.example.qltd.job.entity.Job;
+import com.example.qltd.job.enums.JobStatus;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 public interface JobRepository
@@ -25,4 +28,8 @@ public interface JobRepository
             String title,
             Long companyId,
             Long id);
+
+    List<Job> findAllByStatusAndDeadlineBeforeAndDeletedFalse(
+            JobStatus status,
+            LocalDate deadline);
 }
