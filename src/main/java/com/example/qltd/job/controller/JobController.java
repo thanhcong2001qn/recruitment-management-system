@@ -7,6 +7,7 @@ import com.example.qltd.job.dto.request.JobSearchRequest;
 import com.example.qltd.job.dto.response.JobResponse;
 import com.example.qltd.job.service.JobService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -80,6 +81,38 @@ public class JobController {
                 ApiResponse.<PagedResponse<JobResponse>>builder()
                         .success(true)
                         .message("Job list retrieved successfully")
+                        .data(response)
+                        .build());
+    }
+
+    @Operation(summary = "Get job by ID", description = "Retrieve a job by ID. Candidates can only view published jobs.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Job retrieved successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Authentication required"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Access denied"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Job not found")
+    })
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','RECRUITER','CANDIDATE')")
+    public ResponseEntity<ApiResponse<JobResponse>> getJob(
+            @Parameter(description = "Job ID", example = "1", required = true) @PathVariable Long id,
+
+            Authentication authentication) {
+
+        boolean publicSearch = authentication.getAuthorities()
+                .stream()
+                .anyMatch(
+                        authority -> authority.getAuthority()
+                                .equals("ROLE_CANDIDATE"));
+
+        JobResponse response = jobService.getJobById(
+                id,
+                publicSearch);
+
+        return ResponseEntity.ok(
+                ApiResponse.<JobResponse>builder()
+                        .success(true)
+                        .message("Job retrieved successfully")
                         .data(response)
                         .build());
     }

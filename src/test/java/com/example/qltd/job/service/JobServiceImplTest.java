@@ -9,6 +9,7 @@ import com.example.qltd.job.dto.request.CreateJobRequest;
 import com.example.qltd.job.dto.request.JobSearchRequest;
 import com.example.qltd.job.dto.response.JobResponse;
 import com.example.qltd.job.entity.Job;
+import com.example.qltd.job.enums.JobStatus;
 import com.example.qltd.job.mapper.JobMapper;
 import com.example.qltd.job.repository.JobRepository;
 import com.example.qltd.job.service.impl.JobServiceImpl;
@@ -505,6 +506,182 @@ class JobServiceImplTest {
                     .toPagedResponse(
                             eq(page),
                             any());
+        }
+    }
+
+    @Nested
+    @DisplayName("getJobById()")
+    class GetJobByIdTest {
+
+        @Test
+        @DisplayName("Should return PUBLISHED job for candidate")
+        void shouldReturnPublishedJobForCandidate() {
+
+            job.setStatus(JobStatus.PUBLISHED);
+
+            when(
+                    jobRepository.findByIdAndDeletedFalse(1L))
+                    .thenReturn(
+                            Optional.of(job));
+
+            when(
+                    jobMapper.toResponse(job))
+                    .thenReturn(response);
+
+            JobResponse result = jobService.getJobById(
+                    1L,
+                    true);
+
+            assertThat(result)
+                    .isSameAs(response);
+
+            verify(jobRepository)
+                    .findByIdAndDeletedFalse(1L);
+
+            verify(jobMapper)
+                    .toResponse(job);
+        }
+
+        @Test
+        @DisplayName("Should return any active job for management user")
+        void shouldReturnActiveJobForManagementUser() {
+
+            job.setStatus(JobStatus.DRAFT);
+
+            when(
+                    jobRepository.findByIdAndDeletedFalse(1L))
+                    .thenReturn(
+                            Optional.of(job));
+
+            when(
+                    jobMapper.toResponse(job))
+                    .thenReturn(response);
+
+            JobResponse result = jobService.getJobById(
+                    1L,
+                    false);
+
+            assertThat(result)
+                    .isSameAs(response);
+
+            verify(jobMapper)
+                    .toResponse(job);
+        }
+
+        @Test
+        @DisplayName("Should reject non-published job for candidate")
+        void shouldRejectNonPublishedJobForCandidate() {
+
+            job.setStatus(JobStatus.DRAFT);
+
+            when(
+                    jobRepository.findByIdAndDeletedFalse(1L))
+                    .thenReturn(
+                            Optional.of(job));
+
+            assertThatThrownBy(() -> jobService.getJobById(
+                    1L,
+                    true))
+                    .isInstanceOf(
+                            ResourceNotFoundException.class)
+                    .hasMessage(
+                            "Job not found.");
+
+            verify(
+                    jobMapper,
+                    never())
+                    .toResponse(any());
+        }
+
+        @Test
+        @DisplayName("Should reject CLOSED job for candidate")
+        void shouldRejectClosedJobForCandidate() {
+
+            job.setStatus(JobStatus.CLOSED);
+
+            when(
+                    jobRepository.findByIdAndDeletedFalse(1L))
+                    .thenReturn(
+                            Optional.of(job));
+
+            assertThatThrownBy(() -> jobService.getJobById(
+                    1L,
+                    true))
+                    .isInstanceOf(
+                            ResourceNotFoundException.class);
+
+            verify(
+                    jobMapper,
+                    never())
+                    .toResponse(any());
+        }
+
+        @Test
+        @DisplayName("Should reject EXPIRED job for candidate")
+        void shouldRejectExpiredJobForCandidate() {
+
+            job.setStatus(JobStatus.EXPIRED);
+
+            when(
+                    jobRepository.findByIdAndDeletedFalse(1L))
+                    .thenReturn(
+                            Optional.of(job));
+
+            assertThatThrownBy(() -> jobService.getJobById(
+                    1L,
+                    true))
+                    .isInstanceOf(
+                            ResourceNotFoundException.class);
+
+            verify(
+                    jobMapper,
+                    never())
+                    .toResponse(any());
+        }
+
+        @Test
+        @DisplayName("Should throw when job does not exist")
+        void shouldThrowWhenJobDoesNotExist() {
+
+            when(
+                    jobRepository.findByIdAndDeletedFalse(999L))
+                    .thenReturn(
+                            Optional.empty());
+
+            assertThatThrownBy(() -> jobService.getJobById(
+                    999L,
+                    false))
+                    .isInstanceOf(
+                            ResourceNotFoundException.class)
+                    .hasMessage(
+                            "Job not found.");
+
+            verify(
+                    jobMapper,
+                    never())
+                    .toResponse(any());
+        }
+
+        @Test
+        @DisplayName("Should not return soft deleted job")
+        void shouldNotReturnSoftDeletedJob() {
+
+            when(
+                    jobRepository.findByIdAndDeletedFalse(1L))
+                    .thenReturn(
+                            Optional.empty());
+
+            assertThatThrownBy(() -> jobService.getJobById(
+                    1L,
+                    false))
+                    .isInstanceOf(
+                            ResourceNotFoundException.class)
+                    .hasMessage(
+                            "Job not found.");
+
+            verify(
+                    jobRepository)
+                    .findByIdAndDeletedFalse(1L);
         }
     }
 }

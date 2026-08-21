@@ -901,4 +901,233 @@ class JobControllerIT
                             status().isUnauthorized());
         }
     }
+
+    @Nested
+    @DisplayName("GET /api/jobs/{id}")
+    class GetJobByIdTest {
+
+        @Test
+        @WithMockUser(username = "candidate@test.com", roles = "CANDIDATE")
+        @DisplayName("Candidate should get published job")
+        void candidateShouldGetPublishedJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Published Job",
+                    "published-job",
+                    openAi,
+                    JobStatus.PUBLISHED);
+
+            mockMvc.perform(
+                    get(
+                            "/api/jobs/{id}",
+                            job.getId()))
+                    .andExpect(
+                            status().isOk())
+                    .andExpect(
+                            jsonPath("$.success")
+                                    .value(true))
+                    .andExpect(
+                            jsonPath("$.message")
+                                    .value(
+                                            "Job retrieved successfully"))
+                    .andExpect(
+                            jsonPath("$.data.id")
+                                    .value(job.getId()))
+                    .andExpect(
+                            jsonPath("$.data.title")
+                                    .value(
+                                            "Published Job"))
+                    .andExpect(
+                            jsonPath("$.data.status")
+                                    .value("PUBLISHED"))
+                    .andExpect(
+                            jsonPath("$.data.companyId")
+                                    .value(openAi.getId()));
+        }
+
+        @Test
+        @WithMockUser(username = "candidate@test.com", roles = "CANDIDATE")
+        @DisplayName("Candidate should not get DRAFT job")
+        void candidateShouldNotGetDraftJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Draft Job",
+                    "draft-job",
+                    openAi,
+                    JobStatus.DRAFT);
+
+            mockMvc.perform(
+                    get(
+                            "/api/jobs/{id}",
+                            job.getId()))
+                    .andExpect(
+                            status().isNotFound())
+                    .andExpect(
+                            jsonPath("$.error")
+                                    .value(
+                                            "RESOURCE_NOT_FOUND"));
+        }
+
+        @Test
+        @WithMockUser(username = "candidate@test.com", roles = "CANDIDATE")
+        @DisplayName("Candidate should not get CLOSED job")
+        void candidateShouldNotGetClosedJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Closed Job",
+                    "closed-job",
+                    openAi,
+                    JobStatus.CLOSED);
+
+            mockMvc.perform(
+                    get(
+                            "/api/jobs/{id}",
+                            job.getId()))
+                    .andExpect(
+                            status().isNotFound());
+        }
+
+        @Test
+        @WithMockUser(username = "candidate@test.com", roles = "CANDIDATE")
+        @DisplayName("Candidate should not get EXPIRED job")
+        void candidateShouldNotGetExpiredJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Expired Job",
+                    "expired-job",
+                    openAi,
+                    JobStatus.EXPIRED);
+
+            mockMvc.perform(
+                    get(
+                            "/api/jobs/{id}",
+                            job.getId()))
+                    .andExpect(
+                            status().isNotFound());
+        }
+
+        @Test
+        @WithMockUser(username = "candidate@test.com", roles = "CANDIDATE")
+        @DisplayName("Candidate should not get ARCHIVED job")
+        void candidateShouldNotGetArchivedJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Archived Job",
+                    "archived-job",
+                    openAi,
+                    JobStatus.ARCHIVED);
+
+            mockMvc.perform(
+                    get(
+                            "/api/jobs/{id}",
+                            job.getId()))
+                    .andExpect(
+                            status().isNotFound());
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Recruiter should get DRAFT job")
+        void recruiterShouldGetDraftJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Draft Job",
+                    "draft-job",
+                    openAi,
+                    JobStatus.DRAFT);
+
+            mockMvc.perform(
+                    get(
+                            "/api/jobs/{id}",
+                            job.getId()))
+                    .andExpect(
+                            status().isOk())
+                    .andExpect(
+                            jsonPath("$.data.status")
+                                    .value("DRAFT"));
+        }
+
+        @Test
+        @WithMockUser(username = "admin@test.com", roles = "ADMIN")
+        @DisplayName("Admin should get any active job")
+        void adminShouldGetAnyActiveJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Closed Job",
+                    "closed-job",
+                    openAi,
+                    JobStatus.CLOSED);
+
+            mockMvc.perform(
+                    get(
+                            "/api/jobs/{id}",
+                            job.getId()))
+                    .andExpect(
+                            status().isOk())
+                    .andExpect(
+                            jsonPath("$.data.status")
+                                    .value("CLOSED"));
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Should return 404 for non-existing job")
+        void shouldReturn404ForNonExistingJob()
+                throws Exception {
+
+            mockMvc.perform(
+                    get(
+                            "/api/jobs/{id}",
+                            999999L))
+                    .andExpect(
+                            status().isNotFound())
+                    .andExpect(
+                            jsonPath("$.error")
+                                    .value(
+                                            "RESOURCE_NOT_FOUND"));
+        }
+
+        @Test
+        @WithMockUser(username = "candidate@test.com", roles = "CANDIDATE")
+        @DisplayName("Candidate should not get soft deleted job")
+        void candidateShouldNotGetDeletedJob()
+                throws Exception {
+
+            Job job = JobTestFactory.deletedJob(
+                    openAi);
+
+            job.setId(null);
+            job.setTitle("Deleted Job");
+            job.setSlug("deleted-job");
+
+            job = jobRepository.save(job);
+
+            mockMvc.perform(
+                    get(
+                            "/api/jobs/{id}",
+                            job.getId()))
+                    .andExpect(
+                            status().isNotFound());
+        }
+
+        @Test
+        @DisplayName("Should return 401 without authentication")
+        void shouldReturn401WithoutAuthentication()
+                throws Exception {
+
+            mockMvc.perform(
+                    get(
+                            "/api/jobs/{id}",
+                            1L))
+                    .andExpect(
+                            status().isUnauthorized());
+        }
+    }
 }

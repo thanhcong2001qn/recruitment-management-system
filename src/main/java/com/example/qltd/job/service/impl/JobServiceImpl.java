@@ -6,6 +6,7 @@ import com.example.qltd.company.repository.CompanyRepository;
 import com.example.qltd.job.dto.request.CreateJobRequest;
 import com.example.qltd.job.dto.response.JobResponse;
 import com.example.qltd.job.entity.Job;
+import com.example.qltd.job.enums.JobStatus;
 import com.example.qltd.job.mapper.JobMapper;
 import com.example.qltd.job.repository.JobRepository;
 import com.example.qltd.job.service.JobService;
@@ -86,5 +87,26 @@ public class JobServiceImpl implements JobService {
         return pageMapper.toPagedResponse(
                 jobs,
                 jobMapper::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public JobResponse getJobById(
+            Long id,
+            boolean publicSearch) {
+
+        Job job = jobRepository
+                .findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Job not found."));
+
+        if (publicSearch
+                && job.getStatus() != JobStatus.PUBLISHED) {
+
+            throw new ResourceNotFoundException(
+                    "Job not found.");
+        }
+
+        return jobMapper.toResponse(job);
     }
 }

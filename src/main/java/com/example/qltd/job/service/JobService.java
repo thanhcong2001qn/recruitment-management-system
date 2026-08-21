@@ -14,4 +14,8 @@ public interface JobService {
             JobSearchRequest request,
             Pageable pageable,
             boolean publicSearch);
+
+    JobResponse getJobById(
+            Long id,
+            boolean publicSearch);
 }
