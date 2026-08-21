@@ -12,5 +12,6 @@ public interface JobService {
 
     PagedResponse<JobResponse> searchJobs(
             JobSearchRequest request,
-            Pageable pageable);
+            Pageable pageable,
+            boolean publicSearch);
 }

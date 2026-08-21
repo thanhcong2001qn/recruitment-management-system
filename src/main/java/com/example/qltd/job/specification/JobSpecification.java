@@ -2,6 +2,8 @@ package com.example.qltd.job.specification;
 
 import com.example.qltd.job.dto.request.JobSearchRequest;
 import com.example.qltd.job.entity.Job;
+import com.example.qltd.job.enums.JobStatus;
+
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -14,7 +16,8 @@ public final class JobSpecification {
     }
 
     public static Specification<Job> search(
-            JobSearchRequest request) {
+            JobSearchRequest request,
+            boolean publicSearch) {
 
         return (root, query, cb) -> {
 
@@ -23,6 +26,14 @@ public final class JobSpecification {
             // Chỉ lấy Job chưa bị soft delete.
             predicates.add(
                     cb.isFalse(root.get("deleted")));
+
+            if (publicSearch) {
+
+                predicates.add(
+                        cb.equal(
+                                root.get("status"),
+                                JobStatus.PUBLISHED));
+            }
 
             // Keyword: title hoặc description.
             if (request.getKeyword() != null

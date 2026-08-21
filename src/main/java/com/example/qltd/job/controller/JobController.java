@@ -15,6 +15,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -59,16 +60,21 @@ public class JobController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Access denied")
     })
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','RECRUITER','CANDIDATE')")
     public ResponseEntity<ApiResponse<PagedResponse<JobResponse>>> searchJobs(
-
             JobSearchRequest request,
+            @PageableDefault(page = 0, size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+            Authentication authentication) {
 
-            @PageableDefault(page = 0, size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        boolean publicSearch = authentication.getAuthorities()
+                .stream()
+                .anyMatch(
+                        authority -> authority.getAuthority()
+                                .equals("ROLE_CANDIDATE"));
 
         PagedResponse<JobResponse> response = jobService.searchJobs(
                 request,
-                pageable);
+                pageable,
+                publicSearch);
 
         return ResponseEntity.ok(
                 ApiResponse.<PagedResponse<JobResponse>>builder()

@@ -72,9 +72,12 @@ public class JobServiceImpl implements JobService {
     @Transactional(readOnly = true)
     public PagedResponse<JobResponse> searchJobs(
             JobSearchRequest request,
-            Pageable pageable) {
+            Pageable pageable,
+            boolean publicSearch) {
 
-        Specification<Job> specification = JobSpecification.search(request);
+        Specification<Job> specification = JobSpecification.search(
+                request,
+                publicSearch);
 
         Page<Job> jobs = jobRepository.findAll(
                 specification,

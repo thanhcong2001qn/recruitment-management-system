@@ -34,6 +34,22 @@ class JobControllerIT
 
     private Company microsoft;
 
+    private Job saveJobWithStatus(
+            String title,
+            String slug,
+            Company company,
+            JobStatus status) {
+
+        Job job = JobTestFactory.job(company);
+
+        job.setId(null);
+        job.setTitle(title);
+        job.setSlug(slug);
+        job.setStatus(status);
+
+        return jobRepository.save(job);
+    }
+
     @BeforeEach
     void setUp() {
 
@@ -648,6 +664,241 @@ class JobControllerIT
                                     "$.data.items[0].title")
                                     .value(
                                             "Java Developer"));
+        }
+    }
+
+    @Nested
+    @DisplayName("Public job visibility")
+    class PublicJobVisibilityTest {
+        @Test
+        @WithMockUser(username = "candidate@test.com", roles = "CANDIDATE")
+        @DisplayName("Candidate should see only PUBLISHED jobs")
+        void candidateShouldSeeOnlyPublishedJobs()
+                throws Exception {
+
+            saveJobWithStatus(
+                    "Published Job",
+                    "published-job",
+                    openAi,
+                    JobStatus.PUBLISHED);
+
+            saveJobWithStatus(
+                    "Draft Job",
+                    "draft-job",
+                    openAi,
+                    JobStatus.DRAFT);
+
+            saveJobWithStatus(
+                    "Closed Job",
+                    "closed-job",
+                    openAi,
+                    JobStatus.CLOSED);
+
+            saveJobWithStatus(
+                    "Expired Job",
+                    "expired-job",
+                    openAi,
+                    JobStatus.EXPIRED);
+
+            saveJobWithStatus(
+                    "Archived Job",
+                    "archived-job",
+                    openAi,
+                    JobStatus.ARCHIVED);
+
+            mockMvc.perform(
+                    get("/api/jobs"))
+                    .andExpect(status().isOk())
+                    .andExpect(
+                            jsonPath("$.success")
+                                    .value(true))
+                    .andExpect(
+                            jsonPath("$.data.totalElements")
+                                    .value(1))
+                    .andExpect(
+                            jsonPath("$.data.items[0].title")
+                                    .value("Published Job"))
+                    .andExpect(
+                            jsonPath("$.data.items[0].status")
+                                    .value("PUBLISHED"));
+        }
+
+        @Test
+        @WithMockUser(username = "candidate@test.com", roles = "CANDIDATE")
+        @DisplayName("Candidate should not see DRAFT jobs")
+        void candidateShouldNotSeeDraftJobs()
+                throws Exception {
+
+            saveJobWithStatus(
+                    "Draft Job",
+                    "draft-job",
+                    openAi,
+                    JobStatus.DRAFT);
+
+            mockMvc.perform(
+                    get("/api/jobs")
+                            .param(
+                                    "status",
+                                    "DRAFT"))
+                    .andExpect(status().isOk())
+                    .andExpect(
+                            jsonPath("$.data.totalElements")
+                                    .value(0));
+        }
+
+        @Test
+        @WithMockUser(username = "candidate@test.com", roles = "CANDIDATE")
+        @DisplayName("Candidate should not see CLOSED jobs")
+        void candidateShouldNotSeeClosedJobs()
+                throws Exception {
+
+            saveJobWithStatus(
+                    "Closed Job",
+                    "closed-job",
+                    openAi,
+                    JobStatus.CLOSED);
+
+            mockMvc.perform(
+                    get("/api/jobs")
+                            .param(
+                                    "status",
+                                    "CLOSED"))
+                    .andExpect(status().isOk())
+                    .andExpect(
+                            jsonPath("$.data.totalElements")
+                                    .value(0));
+        }
+
+        @Test
+        @WithMockUser(username = "candidate@test.com", roles = "CANDIDATE")
+        @DisplayName("Candidate should not see ARCHIVED jobs")
+        void candidateShouldNotSeeArchivedJobs()
+                throws Exception {
+
+            saveJobWithStatus(
+                    "Archived Job",
+                    "archived-job",
+                    openAi,
+                    JobStatus.ARCHIVED);
+
+            mockMvc.perform(
+                    get("/api/jobs")
+                            .param(
+                                    "status",
+                                    "ARCHIVED"))
+                    .andExpect(status().isOk())
+                    .andExpect(
+                            jsonPath("$.data.totalElements")
+                                    .value(0));
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Recruiter should see CLOSED jobs")
+        void recruiterShouldSeeClosedJobs()
+                throws Exception {
+
+            saveJobWithStatus(
+                    "Closed Job",
+                    "closed-job",
+                    openAi,
+                    JobStatus.CLOSED);
+
+            mockMvc.perform(
+                    get("/api/jobs")
+                            .param(
+                                    "status",
+                                    "CLOSED"))
+                    .andExpect(status().isOk())
+                    .andExpect(
+                            jsonPath("$.data.totalElements")
+                                    .value(1));
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Recruiter should see all management statuses")
+        void recruiterShouldSeeAllManagementStatuses()
+                throws Exception {
+
+            saveJobWithStatus(
+                    "Draft Job",
+                    "draft-job",
+                    openAi,
+                    JobStatus.DRAFT);
+
+            saveJobWithStatus(
+                    "Published Job",
+                    "published-job",
+                    openAi,
+                    JobStatus.PUBLISHED);
+
+            saveJobWithStatus(
+                    "Closed Job",
+                    "closed-job",
+                    openAi,
+                    JobStatus.CLOSED);
+
+            mockMvc.perform(
+                    get("/api/jobs"))
+                    .andExpect(status().isOk())
+                    .andExpect(
+                            jsonPath("$.data.totalElements")
+                                    .value(3));
+        }
+
+        @Test
+        @WithMockUser(username = "candidate@test.com", roles = "CANDIDATE")
+        @DisplayName("Candidate should only see published jobs even with other filters")
+        void candidateShouldOnlySeePublishedJobsWithOtherFilters()
+                throws Exception {
+
+            Job published = saveJobWithStatus(
+                    "Java Developer",
+                    "java-developer",
+                    openAi,
+                    JobStatus.PUBLISHED);
+
+            published.setLocation("Ho Chi Minh");
+
+            jobRepository.save(published);
+
+            Job draft = saveJobWithStatus(
+                    "Java Developer Draft",
+                    "java-developer-draft",
+                    openAi,
+                    JobStatus.DRAFT);
+
+            draft.setLocation("Ho Chi Minh");
+
+            jobRepository.save(draft);
+
+            mockMvc.perform(
+                    get("/api/jobs")
+                            .param(
+                                    "keyword",
+                                    "Java")
+                            .param(
+                                    "location",
+                                    "Ho Chi Minh"))
+                    .andExpect(status().isOk())
+                    .andExpect(
+                            jsonPath("$.data.totalElements")
+                                    .value(1))
+                    .andExpect(
+                            jsonPath("$.data.items[0].status")
+                                    .value("PUBLISHED"));
+        }
+
+        @Test
+        @DisplayName("Should return 401 when requesting jobs without authentication")
+        void shouldReturn401WhenUnauthenticated()
+                throws Exception {
+
+            mockMvc.perform(
+                    get("/api/jobs"))
+                    .andExpect(
+                            status().isUnauthorized());
         }
     }
 }

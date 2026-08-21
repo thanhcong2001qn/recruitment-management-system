@@ -304,7 +304,7 @@ class JobServiceImplTest {
 
             PagedResponse<JobResponse> result = jobService.searchJobs(
                     request,
-                    pageable);
+                    pageable, true);
 
             assertThat(result)
                     .isSameAs(expected);
@@ -349,7 +349,7 @@ class JobServiceImplTest {
 
             PagedResponse<JobResponse> result = jobService.searchJobs(
                     request,
-                    pageable);
+                    pageable, true);
 
             assertThat(result)
                     .isSameAs(expected);
@@ -398,7 +398,7 @@ class JobServiceImplTest {
 
             jobService.searchJobs(
                     request,
-                    pageable);
+                    pageable, true);
 
             ArgumentCaptor<Specification<Job>> specificationCaptor = ArgumentCaptor.forClass(
                     Specification.class);
@@ -411,6 +411,100 @@ class JobServiceImplTest {
             assertThat(
                     specificationCaptor.getValue())
                     .isNotNull();
+        }
+
+        @Test
+        @DisplayName("Should search only public jobs when publicSearch is true")
+        void shouldSearchPublicJobsOnly() {
+
+            JobSearchRequest request = new JobSearchRequest();
+
+            Pageable pageable = PageRequest.of(0, 10);
+
+            Page<Job> page = new PageImpl<>(
+                    List.of(job),
+                    pageable,
+                    1);
+
+            @SuppressWarnings("unchecked")
+            PagedResponse<JobResponse> expected = mock(PagedResponse.class);
+
+            when(
+                    jobRepository.findAll(
+                            any(Specification.class),
+                            eq(pageable)))
+                    .thenReturn(page);
+
+            when(
+                    pageMapper.<Job, JobResponse>toPagedResponse(
+                            eq(page),
+                            any()))
+                    .thenReturn(expected);
+
+            PagedResponse<JobResponse> result = jobService.searchJobs(
+                    request,
+                    pageable,
+                    true);
+
+            assertThat(result)
+                    .isSameAs(expected);
+
+            verify(jobRepository)
+                    .findAll(
+                            any(Specification.class),
+                            eq(pageable));
+
+            verify(pageMapper)
+                    .toPagedResponse(
+                            eq(page),
+                            any());
+        }
+
+        @Test
+        @DisplayName("Should search all management jobs when publicSearch is false")
+        void shouldSearchManagementJobs() {
+
+            JobSearchRequest request = new JobSearchRequest();
+
+            Pageable pageable = PageRequest.of(0, 10);
+
+            Page<Job> page = new PageImpl<>(
+                    List.of(job),
+                    pageable,
+                    1);
+
+            @SuppressWarnings("unchecked")
+            PagedResponse<JobResponse> expected = mock(PagedResponse.class);
+
+            when(
+                    jobRepository.findAll(
+                            any(Specification.class),
+                            eq(pageable)))
+                    .thenReturn(page);
+
+            when(
+                    pageMapper.<Job, JobResponse>toPagedResponse(
+                            eq(page),
+                            any()))
+                    .thenReturn(expected);
+
+            PagedResponse<JobResponse> result = jobService.searchJobs(
+                    request,
+                    pageable,
+                    false);
+
+            assertThat(result)
+                    .isSameAs(expected);
+
+            verify(jobRepository)
+                    .findAll(
+                            any(Specification.class),
+                            eq(pageable));
+
+            verify(pageMapper)
+                    .toPagedResponse(
+                            eq(page),
+                            any());
         }
     }
 }
