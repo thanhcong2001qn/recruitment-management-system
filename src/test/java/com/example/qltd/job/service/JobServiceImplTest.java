@@ -63,6 +63,9 @@ class JobServiceImplTest {
     @Mock
     private PageMapper pageMapper;
 
+    @Mock
+    private JobStatusService jobStatusService;
+
     @InjectMocks
     private JobServiceImpl jobService;
 
@@ -1093,6 +1096,91 @@ class JobServiceImplTest {
             assertThatThrownBy(() -> jobService.deleteJob(1L))
                     .isInstanceOf(
                             ResourceNotFoundException.class);
+
+            verify(
+                    jobRepository,
+                    never())
+                    .save(any());
+        }
+    }
+
+    @Nested
+    @DisplayName("changeStatus()")
+    class ChangeStatusTest {
+
+        @Test
+        @DisplayName("Should publish job successfully")
+        void shouldPublishJobSuccessfully() {
+
+            job.setStatus(
+                    JobStatus.DRAFT);
+
+            when(
+                    jobRepository.findByIdAndDeletedFalse(1L))
+                    .thenReturn(
+                            Optional.of(job));
+
+            doAnswer(invocation -> {
+                job.setStatus(
+                        JobStatus.PUBLISHED);
+                return null;
+            })
+                    .when(jobStatusService)
+                    .transition(
+                            job,
+                            JobStatus.PUBLISHED);
+
+            when(
+                    jobRepository.save(job))
+                    .thenReturn(job);
+
+            when(
+                    jobMapper.toResponse(job))
+                    .thenReturn(response);
+
+            JobResponse result = jobService.changeStatus(
+                    1L,
+                    JobStatus.PUBLISHED);
+
+            assertThat(result)
+                    .isSameAs(response);
+
+            assertThat(job.getStatus())
+                    .isEqualTo(
+                            JobStatus.PUBLISHED);
+
+            verify(jobStatusService)
+                    .transition(
+                            job,
+                            JobStatus.PUBLISHED);
+
+            verify(jobRepository)
+                    .save(job);
+        }
+
+        @Test
+        @DisplayName("Should throw when job does not exist")
+        void shouldThrowWhenJobDoesNotExist() {
+
+            when(
+                    jobRepository.findByIdAndDeletedFalse(999L))
+                    .thenReturn(
+                            Optional.empty());
+
+            assertThatThrownBy(() -> jobService.changeStatus(
+                    999L,
+                    JobStatus.PUBLISHED))
+                    .isInstanceOf(
+                            ResourceNotFoundException.class)
+                    .hasMessage(
+                            "Job not found.");
+
+            verify(
+                    jobStatusService,
+                    never())
+                    .transition(
+                            any(),
+                            any());
 
             verify(
                     jobRepository,

@@ -6,6 +6,7 @@ import com.example.qltd.job.dto.request.CreateJobRequest;
 import com.example.qltd.job.dto.request.JobSearchRequest;
 import com.example.qltd.job.dto.request.UpdateJobRequest;
 import com.example.qltd.job.dto.response.JobResponse;
+import com.example.qltd.job.enums.JobStatus;
 import com.example.qltd.job.service.JobService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -165,6 +166,98 @@ public class JobController {
                 ApiResponse.<Void>builder()
                         .success(true)
                         .message("Job deleted successfully")
+                        .build());
+    }
+
+    @Operation(summary = "Publish job", description = "Publish a DRAFT job.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Job published successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Job cannot be published"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Job not found")
+    })
+    @PostMapping("/{id}/publish")
+    @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")
+    public ResponseEntity<ApiResponse<JobResponse>> publishJob(
+            @PathVariable Long id) {
+
+        JobResponse response = jobService.changeStatus(
+                id,
+                JobStatus.PUBLISHED);
+
+        return ResponseEntity.ok(
+                ApiResponse.<JobResponse>builder()
+                        .success(true)
+                        .message("Job published successfully")
+                        .data(response)
+                        .build());
+    }
+
+    @Operation(summary = "Close job", description = "Close a PUBLISHED job.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Job closed successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Job cannot be closed"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Job not found")
+    })
+    @PostMapping("/{id}/close")
+    @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")
+    public ResponseEntity<ApiResponse<JobResponse>> closeJob(
+            @PathVariable Long id) {
+
+        JobResponse response = jobService.changeStatus(
+                id,
+                JobStatus.CLOSED);
+
+        return ResponseEntity.ok(
+                ApiResponse.<JobResponse>builder()
+                        .success(true)
+                        .message("Job closed successfully")
+                        .data(response)
+                        .build());
+    }
+
+    @Operation(summary = "Expire job", description = "Mark a PUBLISHED job as EXPIRED.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Job expired successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Job cannot be expired"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Job not found")
+    })
+    @PostMapping("/{id}/expire")
+    @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")
+    public ResponseEntity<ApiResponse<JobResponse>> expireJob(
+            @PathVariable Long id) {
+
+        JobResponse response = jobService.changeStatus(
+                id,
+                JobStatus.EXPIRED);
+
+        return ResponseEntity.ok(
+                ApiResponse.<JobResponse>builder()
+                        .success(true)
+                        .message("Job expired successfully")
+                        .data(response)
+                        .build());
+    }
+
+    @Operation(summary = "Archive job", description = "Archive a CLOSED or EXPIRED job.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Job archived successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Job cannot be archived"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Job not found")
+    })
+    @PostMapping("/{id}/archive")
+    @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")
+    public ResponseEntity<ApiResponse<JobResponse>> archiveJob(
+            @PathVariable Long id) {
+
+        JobResponse response = jobService.changeStatus(
+                id,
+                JobStatus.ARCHIVED);
+
+        return ResponseEntity.ok(
+                ApiResponse.<JobResponse>builder()
+                        .success(true)
+                        .message("Job archived successfully")
+                        .data(response)
                         .build());
     }
 }

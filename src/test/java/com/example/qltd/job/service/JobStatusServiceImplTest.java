@@ -280,6 +280,32 @@ class JobStatusServiceImplTest {
                     .hasMessage(
                             "A Job cannot be moved back to DRAFT.");
         }
+
+        @Test
+        @DisplayName("Should reject null target status")
+        void shouldRejectNullTargetStatus() {
+
+            assertThatThrownBy(() -> jobStatusService.transition(
+                    job,
+                    null))
+                    .isInstanceOf(
+                            BusinessRuleException.class)
+                    .hasMessage(
+                            "Target status is required.");
+        }
+
+        @Test
+        @DisplayName("Should reject null job")
+        void shouldRejectNullJob() {
+
+            assertThatThrownBy(() -> jobStatusService.transition(
+                    null,
+                    JobStatus.PUBLISHED))
+                    .isInstanceOf(
+                            BusinessRuleException.class)
+                    .hasMessage(
+                            "Job is required.");
+        }
     }
 
     @Test

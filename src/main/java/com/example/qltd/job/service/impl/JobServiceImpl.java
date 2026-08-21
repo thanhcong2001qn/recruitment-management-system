@@ -11,6 +11,7 @@ import com.example.qltd.job.mapper.JobMapper;
 import com.example.qltd.job.repository.JobRepository;
 import com.example.qltd.job.service.JobService;
 import com.example.qltd.job.service.JobSlugService;
+import com.example.qltd.job.service.JobStatusService;
 import com.example.qltd.job.validator.JobValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -40,6 +41,8 @@ public class JobServiceImpl implements JobService {
     private final JobSlugService jobSlugService;
 
     private final PageMapper pageMapper;
+
+    private final JobStatusService jobStatusService;
 
     @Override
     public JobResponse createJob(CreateJobRequest request) {
@@ -163,5 +166,25 @@ public class JobServiceImpl implements JobService {
         job.setDeleted(true);
 
         jobRepository.save(job);
+    }
+
+    @Override
+    public JobResponse changeStatus(
+            Long id,
+            JobStatus targetStatus) {
+
+        Job job = jobRepository
+                .findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Job not found."));
+
+        jobStatusService.transition(
+                job,
+                targetStatus);
+
+        Job updatedJob = jobRepository.save(job);
+
+        return jobMapper.toResponse(
+                updatedJob);
     }
 }

@@ -20,6 +20,16 @@ public class JobStatusServiceImpl
             Job job,
             JobStatus targetStatus) {
 
+        if (job == null) {
+            throw new BusinessRuleException(
+                    "Job is required.");
+        }
+
+        if (targetStatus == null) {
+            throw new BusinessRuleException(
+                    "Target status is required.");
+        }
+
         JobStatus currentStatus = job.getStatus();
 
         if (currentStatus == targetStatus) {
@@ -36,19 +46,23 @@ public class JobStatusServiceImpl
 
             case ARCHIVED -> archive(job);
 
-            case DRAFT -> moveToDraft(job);
+            case DRAFT ->
+                moveToDraft(job);
         }
     }
 
     private void publish(Job job) {
 
         if (job.getStatus() != JobStatus.DRAFT) {
-            throw new BusinessRuleException("Only DRAFT jobs can be published.");
+
+            throw new BusinessRuleException(
+                    "Only DRAFT jobs can be published.");
         }
 
         jobValidator.validatePublish(job);
 
-        job.setStatus(JobStatus.PUBLISHED);
+        job.setStatus(
+                JobStatus.PUBLISHED);
     }
 
     private void close(Job job) {
@@ -59,7 +73,8 @@ public class JobStatusServiceImpl
                     "Only PUBLISHED jobs can be closed.");
         }
 
-        job.setStatus(JobStatus.CLOSED);
+        job.setStatus(
+                JobStatus.CLOSED);
     }
 
     private void expire(Job job) {
@@ -70,7 +85,8 @@ public class JobStatusServiceImpl
                     "Only PUBLISHED jobs can expire.");
         }
 
-        job.setStatus(JobStatus.EXPIRED);
+        job.setStatus(
+                JobStatus.EXPIRED);
     }
 
     private void archive(Job job) {
@@ -82,7 +98,8 @@ public class JobStatusServiceImpl
                     "Only CLOSED or EXPIRED jobs can be archived.");
         }
 
-        job.setStatus(JobStatus.ARCHIVED);
+        job.setStatus(
+                JobStatus.ARCHIVED);
     }
 
     private void moveToDraft(Job job) {

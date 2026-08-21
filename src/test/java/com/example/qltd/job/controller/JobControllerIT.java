@@ -19,8 +19,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -1691,5 +1693,262 @@ class JobControllerIT
                     .andExpect(
                             status().isNotFound());
         }
+    }
+
+    @Nested
+    @DisplayName("POST /api/jobs/{id}/publish")
+    class PublishJobTest {
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Recruiter should publish DRAFT job")
+        void recruiterShouldPublishDraftJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Java Developer",
+                    "java-developer",
+                    openAi,
+                    JobStatus.DRAFT);
+
+            mockMvc.perform(
+                    post(
+                            "/api/jobs/{id}/publish",
+                            job.getId()))
+                    .andExpect(
+                            status().isOk())
+                    .andExpect(
+                            jsonPath("$.success")
+                                    .value(true))
+                    .andExpect(
+                            jsonPath("$.data.status")
+                                    .value("PUBLISHED"));
+
+            Job updated = jobRepository.findById(
+                    job.getId()).orElseThrow();
+
+            assertThat(updated.getStatus())
+                    .isEqualTo(
+                            JobStatus.PUBLISHED);
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Should reject publishing CLOSED job")
+        void shouldRejectPublishingClosedJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Closed Job",
+                    "closed-job",
+                    openAi,
+                    JobStatus.CLOSED);
+
+            mockMvc.perform(
+                    post(
+                            "/api/jobs/{id}/publish",
+                            job.getId()))
+                    .andExpect(
+                            status().isBadRequest());
+
+            Job unchanged = jobRepository.findById(
+                    job.getId()).orElseThrow();
+
+            assertThat(unchanged.getStatus())
+                    .isEqualTo(
+                            JobStatus.CLOSED);
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/jobs/{id}/close")
+    class CloseJobTest {
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Recruiter should close PUBLISHED job")
+        void recruiterShouldClosePublishedJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Published Job",
+                    "published-job",
+                    openAi,
+                    JobStatus.PUBLISHED);
+
+            mockMvc.perform(
+                    post(
+                            "/api/jobs/{id}/close",
+                            job.getId()))
+                    .andExpect(
+                            status().isOk())
+                    .andExpect(
+                            jsonPath("$.data.status")
+                                    .value("CLOSED"));
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Should reject closing DRAFT job")
+        void shouldRejectClosingDraftJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Draft Job",
+                    "draft-job",
+                    openAi,
+                    JobStatus.DRAFT);
+
+            mockMvc.perform(
+                    post(
+                            "/api/jobs/{id}/close",
+                            job.getId()))
+                    .andExpect(
+                            status().isBadRequest());
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/jobs/{id}/expire")
+    class ExpireJobTest {
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Recruiter should expire PUBLISHED job")
+        void recruiterShouldExpirePublishedJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Published Job",
+                    "published-job",
+                    openAi,
+                    JobStatus.PUBLISHED);
+
+            mockMvc.perform(
+                    post(
+                            "/api/jobs/{id}/expire",
+                            job.getId()))
+                    .andExpect(
+                            status().isOk())
+                    .andExpect(
+                            jsonPath("$.data.status")
+                                    .value("EXPIRED"));
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/jobs/{id}/archive")
+    class ArchiveJobTest {
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Recruiter should archive CLOSED job")
+        void recruiterShouldArchiveClosedJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Closed Job",
+                    "closed-job",
+                    openAi,
+                    JobStatus.CLOSED);
+
+            mockMvc.perform(
+                    post(
+                            "/api/jobs/{id}/archive",
+                            job.getId()))
+                    .andExpect(
+                            status().isOk())
+                    .andExpect(
+                            jsonPath("$.data.status")
+                                    .value("ARCHIVED"));
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Recruiter should archive EXPIRED job")
+        void recruiterShouldArchiveExpiredJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Expired Job",
+                    "expired-job",
+                    openAi,
+                    JobStatus.EXPIRED);
+
+            mockMvc.perform(
+                    post(
+                            "/api/jobs/{id}/archive",
+                            job.getId()))
+                    .andExpect(
+                            status().isOk())
+                    .andExpect(
+                            jsonPath("$.data.status")
+                                    .value("ARCHIVED"));
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Should reject archiving PUBLISHED job")
+        void shouldRejectArchivingPublishedJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Published Job",
+                    "published-job",
+                    openAi,
+                    JobStatus.PUBLISHED);
+
+            mockMvc.perform(
+                    post(
+                            "/api/jobs/{id}/archive",
+                            job.getId()))
+                    .andExpect(
+                            status().isBadRequest());
+        }
+    }
+
+    @Test
+    @WithMockUser(username = "candidate@test.com", roles = "CANDIDATE")
+    @DisplayName("Candidate should not change job status")
+    void candidateShouldNotChangeJobStatus()
+            throws Exception {
+
+        Job job = saveJobWithStatus(
+                "Draft Job",
+                "draft-job",
+                openAi,
+                JobStatus.DRAFT);
+
+        mockMvc.perform(
+                post(
+                        "/api/jobs/{id}/publish",
+                        job.getId()))
+                .andExpect(
+                        status().isForbidden());
+
+        Job unchanged = jobRepository.findById(
+                job.getId()).orElseThrow();
+
+        assertThat(unchanged.getStatus())
+                .isEqualTo(
+                        JobStatus.DRAFT);
+    }
+
+    @Test
+    @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+    @DisplayName("Should return 404 when changing status of non-existing job")
+    void shouldReturn404ForNonExistingJob()
+            throws Exception {
+
+        mockMvc.perform(
+                post(
+                        "/api/jobs/{id}/publish",
+                        999999L))
+                .andExpect(
+                        status().isNotFound())
+                .andExpect(
+                        jsonPath("$.error")
+                                .value(
+                                        "RESOURCE_NOT_FOUND"));
     }
 }
