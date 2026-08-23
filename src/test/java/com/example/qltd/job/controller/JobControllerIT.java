@@ -814,7 +814,7 @@ class JobControllerIT
                     JobStatus.CLOSED);
 
             mockMvc.perform(
-                    get("/api/jobs")
+                    get("/api/jobs/manage")
                             .param(
                                     "status",
                                     "CLOSED"))
@@ -849,7 +849,7 @@ class JobControllerIT
                     JobStatus.CLOSED);
 
             mockMvc.perform(
-                    get("/api/jobs"))
+                    get("/api/jobs/manage"))
                     .andExpect(status().isOk())
                     .andExpect(
                             jsonPath("$.data.totalElements")
@@ -1053,7 +1053,7 @@ class JobControllerIT
 
             mockMvc.perform(
                     get(
-                            "/api/jobs/{id}",
+                            "/api/jobs/manage/{id}",
                             job.getId()))
                     .andExpect(
                             status().isOk())
@@ -1076,7 +1076,7 @@ class JobControllerIT
 
             mockMvc.perform(
                     get(
-                            "/api/jobs/{id}",
+                            "/api/jobs/manage/{id}",
                             job.getId()))
                     .andExpect(
                             status().isOk())
@@ -1905,6 +1905,286 @@ class JobControllerIT
                     .andExpect(
                             status().isBadRequest());
         }
+    }
+
+    @Nested
+    @DisplayName("Public job API")
+    class PublicJobApiTest {
+
+        @Test
+        @WithMockUser(username = "candidate@test.com", roles = "CANDIDATE")
+        @DisplayName("Candidate should only see published jobs")
+        void candidateShouldOnlySeePublishedJobs()
+                throws Exception {
+
+            saveJobWithStatus(
+                    "Published Job",
+                    "published-job",
+                    openAi,
+                    JobStatus.PUBLISHED);
+
+            saveJobWithStatus(
+                    "Draft Job",
+                    "draft-job",
+                    openAi,
+                    JobStatus.DRAFT);
+
+            saveJobWithStatus(
+                    "Closed Job",
+                    "closed-job",
+                    openAi,
+                    JobStatus.CLOSED);
+
+            mockMvc.perform(
+                    get("/api/jobs"))
+                    .andExpect(
+                            status().isOk())
+                    .andExpect(
+                            jsonPath("$.data.totalElements")
+                                    .value(1))
+                    .andExpect(
+                            jsonPath(
+                                    "$.data.items[0].status")
+                                    .value("PUBLISHED"));
+        }
+
+        @Test
+        @WithMockUser(username = "candidate@test.com", roles = "CANDIDATE")
+        @DisplayName("Candidate cannot bypass visibility with status filter")
+        void candidateCannotBypassVisibility()
+                throws Exception {
+
+            saveJobWithStatus(
+                    "Published Job",
+                    "published-job",
+                    openAi,
+                    JobStatus.PUBLISHED);
+
+            saveJobWithStatus(
+                    "Draft Job",
+                    "draft-job",
+                    openAi,
+                    JobStatus.DRAFT);
+
+            mockMvc.perform(
+                    get("/api/jobs")
+                            .param(
+                                    "status",
+                                    "DRAFT"))
+                    .andExpect(
+                            status().isOk())
+                    .andExpect(
+                            jsonPath("$.data.totalElements")
+                                    .value(0));
+        }
+
+        @Test
+        @WithMockUser(username = "candidate@test.com", roles = "CANDIDATE")
+        @DisplayName("Candidate can get published job details")
+        void candidateCanGetPublishedJobDetails()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Published Job",
+                    "published-job",
+                    openAi,
+                    JobStatus.PUBLISHED);
+
+            mockMvc.perform(
+                    get(
+                            "/api/jobs/{id}",
+                            job.getId()))
+                    .andExpect(
+                            status().isOk())
+                    .andExpect(
+                            jsonPath(
+                                    "$.data.status")
+                                    .value("PUBLISHED"));
+        }
+
+        @Test
+        @WithMockUser(username = "candidate@test.com", roles = "CANDIDATE")
+        @DisplayName("Candidate cannot get draft job details")
+        void candidateCannotGetDraftJobDetails()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Draft Job",
+                    "draft-job",
+                    openAi,
+                    JobStatus.DRAFT);
+
+            mockMvc.perform(
+                    get(
+                            "/api/jobs/{id}",
+                            job.getId()))
+                    .andExpect(
+                            status().isNotFound());
+        }
+    }
+
+    @Nested
+    @DisplayName("Management job API")
+    class ManagementJobApiTest {
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Recruiter should see draft jobs")
+        void recruiterShouldSeeDraftJobs()
+                throws Exception {
+
+            saveJobWithStatus(
+                    "Draft Job",
+                    "draft-job",
+                    openAi,
+                    JobStatus.DRAFT);
+
+            mockMvc.perform(
+                    get("/api/jobs/manage"))
+                    .andExpect(
+                            status().isOk())
+                    .andExpect(
+                            jsonPath("$.data.totalElements")
+                                    .value(1))
+                    .andExpect(
+                            jsonPath(
+                                    "$.data.items[0].status")
+                                    .value("DRAFT"));
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Recruiter should filter draft jobs")
+        void recruiterShouldFilterDraftJobs()
+                throws Exception {
+
+            saveJobWithStatus(
+                    "Draft Job",
+                    "draft-job",
+                    openAi,
+                    JobStatus.DRAFT);
+
+            saveJobWithStatus(
+                    "Published Job",
+                    "published-job",
+                    openAi,
+                    JobStatus.PUBLISHED);
+
+            mockMvc.perform(
+                    get("/api/jobs/manage")
+                            .param(
+                                    "status",
+                                    "DRAFT"))
+                    .andExpect(
+                            status().isOk())
+                    .andExpect(
+                            jsonPath("$.data.totalElements")
+                                    .value(1));
+        }
+
+        @Test
+        @WithMockUser(username = "candidate@test.com", roles = "CANDIDATE")
+        @DisplayName("Candidate should not access management search")
+        void candidateShouldNotAccessManagementSearch()
+                throws Exception {
+
+            mockMvc.perform(
+                    get("/api/jobs/manage"))
+                    .andExpect(
+                            status().isForbidden());
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Recruiter should get draft job from management API")
+        void recruiterShouldGetDraftJobFromManagementApi()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Draft Job",
+                    "draft-job",
+                    openAi,
+                    JobStatus.DRAFT);
+
+            mockMvc.perform(
+                    get(
+                            "/api/jobs/manage/{id}",
+                            job.getId()))
+                    .andExpect(
+                            status().isOk())
+                    .andExpect(
+                            jsonPath("$.data.status")
+                                    .value("DRAFT"));
+        }
+
+        @Test
+        @WithMockUser(username = "candidate@test.com", roles = "CANDIDATE")
+        @DisplayName("Candidate should not access management detail")
+        void candidateShouldNotAccessManagementDetail()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Draft Job",
+                    "draft-job",
+                    openAi,
+                    JobStatus.DRAFT);
+
+            mockMvc.perform(
+                    get(
+                            "/api/jobs/manage/{id}",
+                            job.getId()))
+                    .andExpect(
+                            status().isForbidden());
+        }
+    }
+
+    @Test
+    @WithMockUser(username = "candidate@test.com", roles = "CANDIDATE")
+    @DisplayName("Public API should expose only PUBLISHED jobs")
+    void publicApiShouldExposeOnlyPublishedJobs()
+            throws Exception {
+
+        saveJobWithStatus(
+                "Draft",
+                "draft",
+                openAi,
+                JobStatus.DRAFT);
+
+        saveJobWithStatus(
+                "Published",
+                "published",
+                openAi,
+                JobStatus.PUBLISHED);
+
+        saveJobWithStatus(
+                "Closed",
+                "closed",
+                openAi,
+                JobStatus.CLOSED);
+
+        saveJobWithStatus(
+                "Expired",
+                "expired",
+                openAi,
+                JobStatus.EXPIRED);
+
+        saveJobWithStatus(
+                "Archived",
+                "archived",
+                openAi,
+                JobStatus.ARCHIVED);
+
+        mockMvc.perform(
+                get("/api/jobs"))
+                .andExpect(
+                        status().isOk())
+                .andExpect(
+                        jsonPath("$.data.totalElements")
+                                .value(1))
+                .andExpect(
+                        jsonPath(
+                                "$.data.items[0].status")
+                                .value("PUBLISHED"));
     }
 
     @Test

@@ -309,9 +309,9 @@ class JobServiceImplTest {
                             any()))
                     .thenReturn(expected);
 
-            PagedResponse<JobResponse> result = jobService.searchJobs(
+            PagedResponse<JobResponse> result = jobService.searchPublicJobs(
                     request,
-                    pageable, true);
+                    pageable);
 
             assertThat(result)
                     .isSameAs(expected);
@@ -354,9 +354,9 @@ class JobServiceImplTest {
                             any()))
                     .thenReturn(expected);
 
-            PagedResponse<JobResponse> result = jobService.searchJobs(
+            PagedResponse<JobResponse> result = jobService.searchPublicJobs(
                     request,
-                    pageable, true);
+                    pageable);
 
             assertThat(result)
                     .isSameAs(expected);
@@ -403,9 +403,9 @@ class JobServiceImplTest {
                             any()))
                     .thenReturn(expected);
 
-            jobService.searchJobs(
+            jobService.searchPublicJobs(
                     request,
-                    pageable, true);
+                    pageable);
 
             ArgumentCaptor<Specification<Job>> specificationCaptor = ArgumentCaptor.forClass(
                     Specification.class);
@@ -421,8 +421,8 @@ class JobServiceImplTest {
         }
 
         @Test
-        @DisplayName("Should search only public jobs when publicSearch is true")
-        void shouldSearchPublicJobsOnly() {
+        @DisplayName("Should search only published jobs for public API")
+        void shouldSearchPublicJobs() {
 
             JobSearchRequest request = new JobSearchRequest();
 
@@ -448,10 +448,9 @@ class JobServiceImplTest {
                             any()))
                     .thenReturn(expected);
 
-            PagedResponse<JobResponse> result = jobService.searchJobs(
+            PagedResponse<JobResponse> result = jobService.searchPublicJobs(
                     request,
-                    pageable,
-                    true);
+                    pageable);
 
             assertThat(result)
                     .isSameAs(expected);
@@ -460,19 +459,17 @@ class JobServiceImplTest {
                     .findAll(
                             any(Specification.class),
                             eq(pageable));
-
-            verify(pageMapper)
-                    .toPagedResponse(
-                            eq(page),
-                            any());
         }
 
         @Test
-        @DisplayName("Should search all management jobs when publicSearch is false")
+        @DisplayName("Should search management jobs")
         void shouldSearchManagementJobs() {
 
             JobSearchRequest request = new JobSearchRequest();
 
+            request.setStatus(
+                    JobStatus.DRAFT);
+
             Pageable pageable = PageRequest.of(0, 10);
 
             Page<Job> page = new PageImpl<>(
@@ -495,29 +492,57 @@ class JobServiceImplTest {
                             any()))
                     .thenReturn(expected);
 
-            PagedResponse<JobResponse> result = jobService.searchJobs(
+            PagedResponse<JobResponse> result = jobService.searchManagementJobs(
                     request,
-                    pageable,
-                    false);
+                    pageable);
 
             assertThat(result)
                     .isSameAs(expected);
-
-            verify(jobRepository)
-                    .findAll(
-                            any(Specification.class),
-                            eq(pageable));
-
-            verify(pageMapper)
-                    .toPagedResponse(
-                            eq(page),
-                            any());
         }
     }
 
     @Nested
     @DisplayName("getJobById()")
     class GetJobByIdTest {
+
+        @Test
+        @DisplayName("Should search management jobs")
+        void shouldSearchManagementJobs() {
+
+            JobSearchRequest request = new JobSearchRequest();
+
+            request.setStatus(
+                    JobStatus.DRAFT);
+
+            Pageable pageable = PageRequest.of(0, 10);
+
+            Page<Job> page = new PageImpl<>(
+                    List.of(job),
+                    pageable,
+                    1);
+
+            @SuppressWarnings("unchecked")
+            PagedResponse<JobResponse> expected = mock(PagedResponse.class);
+
+            when(
+                    jobRepository.findAll(
+                            any(Specification.class),
+                            eq(pageable)))
+                    .thenReturn(page);
+
+            when(
+                    pageMapper.<Job, JobResponse>toPagedResponse(
+                            eq(page),
+                            any()))
+                    .thenReturn(expected);
+
+            PagedResponse<JobResponse> result = jobService.searchManagementJobs(
+                    request,
+                    pageable);
+
+            assertThat(result)
+                    .isSameAs(expected);
+        }
 
         @Test
         @DisplayName("Should return PUBLISHED job for candidate")
@@ -534,9 +559,8 @@ class JobServiceImplTest {
                     jobMapper.toResponse(job))
                     .thenReturn(response);
 
-            JobResponse result = jobService.getJobById(
-                    1L,
-                    true);
+            JobResponse result = jobService.getPublicJobById(
+                    1L);
 
             assertThat(result)
                     .isSameAs(response);
@@ -563,9 +587,8 @@ class JobServiceImplTest {
                     jobMapper.toResponse(job))
                     .thenReturn(response);
 
-            JobResponse result = jobService.getJobById(
-                    1L,
-                    false);
+            JobResponse result = jobService.getManagementJobById(
+                    1L);
 
             assertThat(result)
                     .isSameAs(response);
@@ -585,9 +608,8 @@ class JobServiceImplTest {
                     .thenReturn(
                             Optional.of(job));
 
-            assertThatThrownBy(() -> jobService.getJobById(
-                    1L,
-                    true))
+            assertThatThrownBy(() -> jobService.getPublicJobById(
+                    1L))
                     .isInstanceOf(
                             ResourceNotFoundException.class)
                     .hasMessage(
@@ -610,9 +632,8 @@ class JobServiceImplTest {
                     .thenReturn(
                             Optional.of(job));
 
-            assertThatThrownBy(() -> jobService.getJobById(
-                    1L,
-                    true))
+            assertThatThrownBy(() -> jobService.getPublicJobById(
+                    1L))
                     .isInstanceOf(
                             ResourceNotFoundException.class);
 
@@ -633,9 +654,8 @@ class JobServiceImplTest {
                     .thenReturn(
                             Optional.of(job));
 
-            assertThatThrownBy(() -> jobService.getJobById(
-                    1L,
-                    true))
+            assertThatThrownBy(() -> jobService.getPublicJobById(
+                    1L))
                     .isInstanceOf(
                             ResourceNotFoundException.class);
 
@@ -654,9 +674,8 @@ class JobServiceImplTest {
                     .thenReturn(
                             Optional.empty());
 
-            assertThatThrownBy(() -> jobService.getJobById(
-                    999L,
-                    false))
+            assertThatThrownBy(() -> jobService.getPublicJobById(
+                    999L))
                     .isInstanceOf(
                             ResourceNotFoundException.class)
                     .hasMessage(
@@ -677,9 +696,8 @@ class JobServiceImplTest {
                     .thenReturn(
                             Optional.empty());
 
-            assertThatThrownBy(() -> jobService.getJobById(
-                    1L,
-                    false))
+            assertThatThrownBy(() -> jobService.getPublicJobById(
+                    1L))
                     .isInstanceOf(
                             ResourceNotFoundException.class)
                     .hasMessage(

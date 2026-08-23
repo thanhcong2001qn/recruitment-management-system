@@ -75,14 +75,12 @@ public class JobServiceImpl implements JobService {
 
     @Override
     @Transactional(readOnly = true)
-    public PagedResponse<JobResponse> searchJobs(
+    public PagedResponse<JobResponse> searchPublicJobs(
             JobSearchRequest request,
-            Pageable pageable,
-            boolean publicSearch) {
+            Pageable pageable) {
 
-        Specification<Job> specification = JobSpecification.search(
-                request,
-                publicSearch);
+        Specification<Job> specification = JobSpecification.searchPublic(
+                request);
 
         Page<Job> jobs = jobRepository.findAll(
                 specification,
@@ -95,21 +93,50 @@ public class JobServiceImpl implements JobService {
 
     @Override
     @Transactional(readOnly = true)
-    public JobResponse getJobById(
-            Long id,
-            boolean publicSearch) {
+    public PagedResponse<JobResponse> searchManagementJobs(
+            JobSearchRequest request,
+            Pageable pageable) {
+
+        Specification<Job> specification = JobSpecification.searchManagement(
+                request);
+
+        Page<Job> jobs = jobRepository.findAll(
+                specification,
+                pageable);
+
+        return pageMapper.toPagedResponse(
+                jobs,
+                jobMapper::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public JobResponse getPublicJobById(
+            Long id) {
 
         Job job = jobRepository
                 .findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Job not found."));
 
-        if (publicSearch
-                && job.getStatus() != JobStatus.PUBLISHED) {
+        if (job.getStatus() != JobStatus.PUBLISHED) {
 
             throw new ResourceNotFoundException(
                     "Job not found.");
         }
+
+        return jobMapper.toResponse(job);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public JobResponse getManagementJobById(
+            Long id) {
+
+        Job job = jobRepository
+                .findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Job not found."));
 
         return jobMapper.toResponse(job);
     }

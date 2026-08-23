@@ -56,65 +56,98 @@ public class JobController {
                                 .build());
     }
 
-    @Operation(summary = "Search jobs", description = "Search jobs using filters and pagination.")
+    @Operation(summary = "Search published jobs", description = "Search jobs available to candidates. Only PUBLISHED jobs are returned.")
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Job list retrieved successfully"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Authentication required"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Access denied")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Published jobs retrieved successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Authentication required")
     })
     @GetMapping
-    public ResponseEntity<ApiResponse<PagedResponse<JobResponse>>> searchJobs(
+    @PreAuthorize("hasAnyRole('ADMIN','RECRUITER','CANDIDATE')")
+    public ResponseEntity<ApiResponse<PagedResponse<JobResponse>>> searchPublicJobs(
+
             JobSearchRequest request,
-            @PageableDefault(page = 0, size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
-            Authentication authentication) {
 
-        boolean publicSearch = authentication.getAuthorities()
-                .stream()
-                .anyMatch(
-                        authority -> authority.getAuthority()
-                                .equals("ROLE_CANDIDATE"));
+            @PageableDefault(page = 0, size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
-        PagedResponse<JobResponse> response = jobService.searchJobs(
+        PagedResponse<JobResponse> response = jobService.searchPublicJobs(
                 request,
-                pageable,
-                publicSearch);
+                pageable);
 
         return ResponseEntity.ok(
                 ApiResponse.<PagedResponse<JobResponse>>builder()
                         .success(true)
-                        .message("Job list retrieved successfully")
+                        .message(
+                                "Published job list retrieved successfully")
                         .data(response)
                         .build());
     }
 
-    @Operation(summary = "Get job by ID", description = "Retrieve a job by ID. Candidates can only view published jobs.")
+    @Operation(summary = "Get published job details", description = "Retrieve details of a published job.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Job retrieved successfully"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Authentication required"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Access denied"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Job not found")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Published job not found")
     })
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','RECRUITER','CANDIDATE')")
-    public ResponseEntity<ApiResponse<JobResponse>> getJob(
-            @Parameter(description = "Job ID", example = "1", required = true) @PathVariable Long id,
+    public ResponseEntity<ApiResponse<JobResponse>> getPublicJob(
+            @PathVariable Long id) {
 
-            Authentication authentication) {
-
-        boolean publicSearch = authentication.getAuthorities()
-                .stream()
-                .anyMatch(
-                        authority -> authority.getAuthority()
-                                .equals("ROLE_CANDIDATE"));
-
-        JobResponse response = jobService.getJobById(
-                id,
-                publicSearch);
+        JobResponse response = jobService.getPublicJobById(id);
 
         return ResponseEntity.ok(
                 ApiResponse.<JobResponse>builder()
                         .success(true)
-                        .message("Job retrieved successfully")
+                        .message(
+                                "Job retrieved successfully")
+                        .data(response)
+                        .build());
+    }
+
+    @Operation(summary = "Search jobs for management", description = "Search all non-deleted jobs for ADMIN and RECRUITER.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Jobs retrieved successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Authentication required"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Access denied")
+    })
+    @GetMapping("/manage")
+    @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")
+    public ResponseEntity<ApiResponse<PagedResponse<JobResponse>>> searchManagementJobs(
+
+            JobSearchRequest request,
+
+            @PageableDefault(page = 0, size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+
+        PagedResponse<JobResponse> response = jobService.searchManagementJobs(
+                request,
+                pageable);
+
+        return ResponseEntity.ok(
+                ApiResponse.<PagedResponse<JobResponse>>builder()
+                        .success(true)
+                        .message(
+                                "Job list retrieved successfully")
+                        .data(response)
+                        .build());
+    }
+
+    @Operation(summary = "Get job details for management", description = "Retrieve a non-deleted job regardless of its status.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Job retrieved successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Access denied"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Job not found")
+    })
+    @GetMapping("/manage/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")
+    public ResponseEntity<ApiResponse<JobResponse>> getManagementJob(
+            @PathVariable Long id) {
+
+        JobResponse response = jobService.getManagementJobById(id);
+
+        return ResponseEntity.ok(
+                ApiResponse.<JobResponse>builder()
+                        .success(true)
+                        .message(
+                                "Job retrieved successfully")
                         .data(response)
                         .build());
     }
