@@ -735,4 +735,223 @@ class ApplicationControllerIT
                             status().isUnauthorized());
         }
     }
+
+    @Nested
+    @DisplayName("GET /api/jobs/{jobId}/applications")
+    class SearchApplicationsTest {
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Recruiter should get paged applications")
+        void recruiterShouldGetPagedApplications()
+                throws Exception {
+
+            User candidate1 = saveCandidate(
+                    "candidate1@test.com");
+
+            User candidate2 = saveCandidate(
+                    "candidate2@test.com");
+
+            Job job = savePublishedJob();
+
+            saveApplication(
+                    job,
+                    candidate1);
+
+            saveApplication(
+                    job,
+                    candidate2);
+
+            mockMvc.perform(
+                    get(
+                            "/api/jobs/{jobId}/applications",
+                            job.getId())
+                            .param("page", "0")
+                            .param("size", "10"))
+                    .andExpect(
+                            status().isOk())
+                    .andExpect(
+                            jsonPath("$.success")
+                                    .value(true))
+                    .andExpect(
+                            jsonPath("$.data.totalElements")
+                                    .value(2))
+                    .andExpect(
+                            jsonPath("$.data.items")
+                                    .isArray());
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Should filter applications by status")
+        void shouldFilterApplicationsByStatus()
+                throws Exception {
+
+            User candidate1 = saveCandidate(
+                    "candidate1@test.com");
+
+            User candidate2 = saveCandidate(
+                    "candidate2@test.com");
+
+            Job job = savePublishedJob();
+
+            Application screening = saveApplication(
+                    job,
+                    candidate1);
+
+            screening.setStatus(
+                    ApplicationStatus.SCREENING);
+
+            applicationRepository.save(
+                    screening);
+
+            saveApplication(
+                    job,
+                    candidate2);
+
+            mockMvc.perform(
+                    get(
+                            "/api/jobs/{jobId}/applications",
+                            job.getId())
+                            .param(
+                                    "status",
+                                    "SCREENING"))
+                    .andExpect(
+                            status().isOk())
+                    .andExpect(
+                            jsonPath("$.data.totalElements")
+                                    .value(1))
+                    .andExpect(
+                            jsonPath(
+                                    "$.data.items[0].status")
+                                    .value("SCREENING"));
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Should paginate applications")
+        void shouldPaginateApplications()
+                throws Exception {
+
+            Job job = savePublishedJob();
+
+            for (int i = 1; i <= 15; i++) {
+
+                User candidate = saveCandidate(
+                        "pagination" +
+                                i +
+                                "@test.com");
+
+                saveApplication(
+                        job,
+                        candidate);
+            }
+
+            mockMvc.perform(
+                    get(
+                            "/api/jobs/{jobId}/applications",
+                            job.getId())
+                            .param("page", "0")
+                            .param("size", "10"))
+                    .andExpect(
+                            status().isOk())
+                    .andExpect(
+                            jsonPath("$.data.items.length()")
+                                    .value(10))
+                    .andExpect(
+                            jsonPath("$.data.totalElements")
+                                    .value(15))
+                    .andExpect(
+                            jsonPath("$.data.totalPages")
+                                    .value(2));
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Should only return applications belonging to requested job")
+        void shouldReturnApplicationsOnlyForRequestedJob()
+                throws Exception {
+
+            User candidate1 = saveCandidate(
+                    "candidate1@test.com");
+
+            User candidate2 = saveCandidate(
+                    "candidate2@test.com");
+
+            Job job1 = savePublishedJob();
+
+            Job job2 = savePublishedJob();
+
+            saveApplication(
+                    job1,
+                    candidate1);
+
+            saveApplication(
+                    job2,
+                    candidate2);
+
+            mockMvc.perform(
+                    get(
+                            "/api/jobs/{jobId}/applications",
+                            job1.getId()))
+                    .andExpect(
+                            status().isOk())
+                    .andExpect(
+                            jsonPath("$.data.totalElements")
+                                    .value(1))
+                    .andExpect(
+                            jsonPath(
+                                    "$.data.items[0].jobId")
+                                    .value(job1.getId()));
+        }
+
+        @Test
+        @WithMockUser(username = "candidate@test.com", roles = "CANDIDATE")
+        @DisplayName("Candidate should not access job applications")
+        void candidateShouldNotAccessApplications()
+                throws Exception {
+
+            Job job = savePublishedJob();
+
+            mockMvc.perform(
+                    get(
+                            "/api/jobs/{jobId}/applications",
+                            job.getId()))
+                    .andExpect(
+                            status().isForbidden());
+        }
+
+        @Test
+        @DisplayName("Should return 401 without authentication")
+        void shouldReturn401WithoutAuthentication()
+                throws Exception {
+
+            Job job = savePublishedJob();
+
+            mockMvc.perform(
+                    get(
+                            "/api/jobs/{jobId}/applications",
+                            job.getId()))
+                    .andExpect(
+                            status().isUnauthorized());
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Should return 404 when job does not exist")
+        void shouldReturn404WhenJobDoesNotExist()
+                throws Exception {
+
+            mockMvc.perform(
+                    get(
+                            "/api/jobs/{jobId}/applications",
+                            999999L))
+                    .andExpect(
+                            status().isNotFound())
+                    .andExpect(
+                            jsonPath("$.error")
+                                    .value(
+                                            "RESOURCE_NOT_FOUND"));
+        }
+    }
 }

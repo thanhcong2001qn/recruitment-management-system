@@ -1,15 +1,22 @@
 package com.example.qltd.application.controller;
 
+import com.example.qltd.application.dto.request.ApplicationSearchRequest;
 import com.example.qltd.application.dto.request.ChangeApplicationStatusRequest;
 import com.example.qltd.application.dto.request.CreateApplicationRequest;
 import com.example.qltd.application.dto.response.ApplicationResponse;
 import com.example.qltd.application.service.ApplicationService;
 import com.example.qltd.common.dto.ApiResponse;
+import com.example.qltd.common.dto.PagedResponse;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -112,6 +119,37 @@ public class ApplicationController {
                         .success(true)
                         .message(
                                 "Application withdrawn successfully")
+                        .data(response)
+                        .build());
+    }
+
+    @Operation(summary = "Search applications of a job", description = "Search and paginate applications belonging to a specific job.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Applications retrieved successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Authentication required"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Only admin and recruiter can access"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Job not found")
+    })
+    @GetMapping("/jobs/{jobId}/applications")
+    @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")
+    public ResponseEntity<ApiResponse<PagedResponse<ApplicationResponse>>> searchApplications(
+
+            @PathVariable Long jobId,
+
+            ApplicationSearchRequest request,
+
+            @PageableDefault(page = 0, size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+
+        PagedResponse<ApplicationResponse> response = applicationService.searchApplications(
+                jobId,
+                request,
+                pageable);
+
+        return ResponseEntity.ok(
+                ApiResponse.<PagedResponse<ApplicationResponse>>builder()
+                        .success(true)
+                        .message(
+                                "Applications retrieved successfully")
                         .data(response)
                         .build());
     }

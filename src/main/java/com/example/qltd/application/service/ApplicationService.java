@@ -1,8 +1,12 @@
 package com.example.qltd.application.service;
 
+import org.springframework.data.domain.Pageable;
+
+import com.example.qltd.application.dto.request.ApplicationSearchRequest;
 import com.example.qltd.application.dto.request.ChangeApplicationStatusRequest;
 import com.example.qltd.application.dto.request.CreateApplicationRequest;
 import com.example.qltd.application.dto.response.ApplicationResponse;
+import com.example.qltd.common.dto.PagedResponse;
 
 public interface ApplicationService {
 
@@ -22,4 +26,9 @@ public interface ApplicationService {
     ApplicationResponse withdrawApplication(
             Long applicationId,
             String candidateEmail);
+
+    PagedResponse<ApplicationResponse> searchApplications(
+            Long jobId,
+            ApplicationSearchRequest request,
+            Pageable pageable);
 }

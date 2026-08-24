@@ -32,4 +32,6 @@ public interface JobRepository
     List<Job> findAllByStatusAndDeadlineBeforeAndDeletedFalse(
             JobStatus status,
             LocalDate deadline);
+
+    boolean existsByIdAndDeletedFalse(Long id);
 }

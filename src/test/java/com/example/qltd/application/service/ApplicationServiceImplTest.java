@@ -1,5 +1,6 @@
 package com.example.qltd.application.service;
 
+import com.example.qltd.application.dto.request.ApplicationSearchRequest;
 import com.example.qltd.application.dto.request.ChangeApplicationStatusRequest;
 import com.example.qltd.application.dto.request.CreateApplicationRequest;
 import com.example.qltd.application.dto.response.ApplicationResponse;
@@ -10,9 +11,11 @@ import com.example.qltd.application.repository.ApplicationRepository;
 import com.example.qltd.application.service.impl.ApplicationServiceImpl;
 import com.example.qltd.application.support.ApplicationTestFactory;
 import com.example.qltd.application.validator.ApplicationValidator;
+import com.example.qltd.common.dto.PagedResponse;
 import com.example.qltd.common.exception.BusinessRuleException;
 import com.example.qltd.common.exception.DuplicateResourceException;
 import com.example.qltd.common.exception.ResourceNotFoundException;
+import com.example.qltd.common.mapper.PageMapper;
 import com.example.qltd.company.entity.Company;
 import com.example.qltd.job.entity.Job;
 import com.example.qltd.job.repository.JobRepository;
@@ -27,12 +30,19 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -56,6 +66,9 @@ class ApplicationServiceImplTest {
 
     @Mock
     private ApplicationStatusService applicationStatusService;
+
+    @Mock
+    private PageMapper pageMapper;
 
     @InjectMocks
     private ApplicationServiceImpl applicationService;
@@ -575,5 +588,131 @@ class ApplicationServiceImplTest {
                     .hasMessage(
                             "Application not found.");
         }
+    }
+
+    @Test
+    @DisplayName("Should return paged applications for job")
+    void shouldReturnPagedApplicationsForJob() {
+
+        ApplicationSearchRequest request = new ApplicationSearchRequest();
+
+        Pageable pageable = PageRequest.of(0, 10);
+
+        Page<Application> page = new PageImpl<>(
+                List.of(application),
+                pageable,
+                1);
+
+        @SuppressWarnings("unchecked")
+        PagedResponse<ApplicationResponse> expected = mock(PagedResponse.class);
+
+        when(
+                jobRepository.existsByIdAndDeletedFalse(1L))
+                .thenReturn(true);
+
+        when(
+                applicationRepository.findAll(
+                        any(Specification.class),
+                        eq(pageable)))
+                .thenReturn(page);
+
+        when(
+                pageMapper.<Application, ApplicationResponse>toPagedResponse(
+                        eq(page),
+                        any()))
+                .thenReturn(expected);
+
+        PagedResponse<ApplicationResponse> result = applicationService.searchApplications(
+                1L,
+                request,
+                pageable);
+
+        assertThat(result)
+                .isSameAs(expected);
+
+        verify(
+                jobRepository)
+                .existsByIdAndDeletedFalse(1L);
+
+        verify(
+                applicationRepository)
+                .findAll(
+                        any(Specification.class),
+                        eq(pageable));
+
+        verify(
+                pageMapper)
+                .toPagedResponse(
+                        eq(page),
+                        any());
+    }
+
+    @Test
+    @DisplayName("Should search applications by status")
+    void shouldSearchApplicationsByStatus() {
+
+        ApplicationSearchRequest request = new ApplicationSearchRequest();
+
+        request.setStatus(
+                ApplicationStatus.SCREENING);
+
+        Pageable pageable = PageRequest.of(0, 10);
+
+        Page<Application> page = new PageImpl<>(
+                List.of(application),
+                pageable,
+                1);
+
+        @SuppressWarnings("unchecked")
+        PagedResponse<ApplicationResponse> expected = mock(PagedResponse.class);
+
+        when(
+                jobRepository.existsByIdAndDeletedFalse(1L))
+                .thenReturn(true);
+
+        when(
+                applicationRepository.findAll(
+                        any(Specification.class),
+                        eq(pageable)))
+                .thenReturn(page);
+
+        when(
+                pageMapper.<Application, ApplicationResponse>toPagedResponse(
+                        eq(page),
+                        any()))
+                .thenReturn(expected);
+
+        PagedResponse<ApplicationResponse> result = applicationService.searchApplications(
+                1L,
+                request,
+                pageable);
+
+        assertThat(result)
+                .isSameAs(expected);
+    }
+
+    @Test
+    @DisplayName("Should throw when job does not exist")
+    void shouldThrowWhenJobDoesNotExist() {
+
+        when(
+                jobRepository.existsByIdAndDeletedFalse(999L))
+                .thenReturn(false);
+
+        assertThatThrownBy(() -> applicationService.searchApplications(
+                999L,
+                new ApplicationSearchRequest(),
+                PageRequest.of(0, 10)))
+                .isInstanceOf(
+                        ResourceNotFoundException.class)
+                .hasMessage(
+                        "Job not found.");
+
+        verify(
+                applicationRepository,
+                never())
+                .findAll(
+                        any(Specification.class),
+                        any(Pageable.class));
     }
 }
