@@ -42,9 +42,12 @@ public class JobController {
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")
     public ResponseEntity<ApiResponse<JobResponse>> createJob(
-            @Valid @RequestBody CreateJobRequest request) {
+            @Valid @RequestBody CreateJobRequest request,
+            Authentication authentication) {
 
-        JobResponse response = jobService.createJob(request);
+        JobResponse response = jobService.createJob(
+                request,
+                authentication.getName());
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)

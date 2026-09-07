@@ -97,7 +97,7 @@ class ApplicationControllerIT
 
         return userRepository.save(
                 ApplicationTestFactory
-                        .recruiter(email));
+                        .recruiter(email, company));
     }
 
     private Job savePublishedJob() {
@@ -987,6 +987,9 @@ class ApplicationControllerIT
         void shouldReturn404WhenJobDoesNotExist()
                 throws Exception {
 
+            saveRecruiter(
+                    "recruiter@test.com");
+
             mockMvc.perform(
                     get(
                             "/api/jobs/{jobId}/applications",
@@ -1193,8 +1196,8 @@ class ApplicationControllerIT
         request.setTitle(
                 "Senior Java Developer");
 
-        mockMvc.perform(
-                put(
+                mockMvc.perform(
+                        put(
                         "/api/jobs/{id}",
                         job.getId())
                         .contentType(
@@ -1232,11 +1235,11 @@ class ApplicationControllerIT
                         jobB.getId())
                         .contentType(
                                 MediaType.APPLICATION_JSON)
-                        .content(
-                                objectMapper.writeValueAsString(
-                                        request)))
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                request)))
                 .andExpect(
-                        status().isBadRequest());
+                        status().isForbidden());
 
         Job unchanged = jobRepository.findById(
                 jobB.getId()).orElseThrow();
@@ -1267,7 +1270,7 @@ class ApplicationControllerIT
                         "/api/jobs/{id}",
                         jobB.getId()))
                 .andExpect(
-                        status().isBadRequest());
+                        status().isForbidden());
 
         Job unchanged = jobRepository.findById(
                 jobB.getId()).orElseThrow();
@@ -1297,7 +1300,7 @@ class ApplicationControllerIT
                         "/api/jobs/{id}/publish",
                         jobB.getId()))
                 .andExpect(
-                        status().isBadRequest());
+                        status().isForbidden());
 
         Job unchanged = jobRepository.findById(
                 jobB.getId()).orElseThrow();

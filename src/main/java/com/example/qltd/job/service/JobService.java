@@ -11,7 +11,7 @@ import org.springframework.data.domain.Pageable;
 public interface JobService {
 
     JobResponse createJob(
-            CreateJobRequest request);
+            CreateJobRequest request, String recruiterEmail);
 
     PagedResponse<JobResponse> searchPublicJobs(
             JobSearchRequest request,

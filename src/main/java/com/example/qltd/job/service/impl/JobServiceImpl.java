@@ -53,12 +53,23 @@ public class JobServiceImpl implements JobService {
     private final UserRepository userRepository;
 
     @Override
-    public JobResponse createJob(CreateJobRequest request) {
+    public JobResponse createJob(
+            CreateJobRequest request,
+            String recruiterEmail) {
 
         Company company = companyRepository
                 .findByIdAndDeletedFalse(request.getCompanyId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Company not found."));
+
+        User user = userRepository
+                .findByEmailIgnoreCase(recruiterEmail)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User not found."));
+
+        companyAuthorizationService.checkCompanyAccess(
+                user,
+                company.getId());
 
         jobValidator.validateCreate(
                 request,

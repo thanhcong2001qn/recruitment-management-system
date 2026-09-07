@@ -113,11 +113,19 @@ class JobServiceImplTest {
         @DisplayName("Should create job successfully")
         void shouldCreateJobSuccessfully() {
 
+            User recruiter = new User();
+            recruiter.setEmail("recruiter@test.com");
+
             when(
                     companyRepository
                             .findByIdAndDeletedFalse(1L))
                     .thenReturn(
                             Optional.of(company));
+
+            when(
+                    userRepository.findByEmailIgnoreCase(
+                            "recruiter@test.com"))
+                    .thenReturn(Optional.of(recruiter));
 
             when(
                     jobMapper.toEntity(createRequest))
@@ -138,7 +146,7 @@ class JobServiceImplTest {
                     .thenReturn(response);
 
             JobResponse result = jobService.createJob(
-                    createRequest);
+                    createRequest, "recruiter@test.com");
 
             assertThat(result)
                     .isNotNull();
@@ -180,6 +188,9 @@ class JobServiceImplTest {
         @DisplayName("Should trim title before generating slug")
         void shouldNormalizeTitleBeforeGeneratingSlug() {
 
+            User recruiter = new User();
+            recruiter.setEmail("recruiter@test.com");
+
             createRequest.setTitle(
                     "   Java Backend Developer   ");
 
@@ -188,6 +199,11 @@ class JobServiceImplTest {
                             .findByIdAndDeletedFalse(1L))
                     .thenReturn(
                             Optional.of(company));
+
+            when(
+                    userRepository.findByEmailIgnoreCase(
+                            "recruiter@test.com"))
+                    .thenReturn(Optional.of(recruiter));
 
             when(
                     jobMapper.toEntity(createRequest))
@@ -208,7 +224,7 @@ class JobServiceImplTest {
                     .thenReturn(response);
 
             jobService.createJob(
-                    createRequest);
+                    createRequest, "recruiter@test.com");
 
             assertThat(job.getTitle())
                     .isEqualTo(
@@ -234,7 +250,7 @@ class JobServiceImplTest {
                             Optional.empty());
 
             assertThatThrownBy(() -> jobService.createJob(
-                    createRequest))
+                    createRequest, "recruiter@test.com"))
                     .isInstanceOf(
                             ResourceNotFoundException.class)
                     .hasMessage(
@@ -256,11 +272,19 @@ class JobServiceImplTest {
         @DisplayName("Should stop when business validation fails")
         void shouldStopWhenValidationFails() {
 
+            User recruiter = new User();
+            recruiter.setEmail("recruiter@test.com");
+
             when(
                     companyRepository
                             .findByIdAndDeletedFalse(1L))
                     .thenReturn(
                             Optional.of(company));
+
+            when(
+                    userRepository.findByEmailIgnoreCase(
+                            "recruiter@test.com"))
+                    .thenReturn(Optional.of(recruiter));
 
             doThrow(
                     new RuntimeException(
@@ -271,7 +295,7 @@ class JobServiceImplTest {
                             company);
 
             assertThatThrownBy(() -> jobService.createJob(
-                    createRequest))
+                    createRequest, "recruiter@test.com"))
                     .isInstanceOf(
                             RuntimeException.class)
                     .hasMessage(

@@ -3,6 +3,7 @@ package com.example.qltd.job.controller;
 import com.example.qltd.company.entity.Company;
 import com.example.qltd.company.repository.CompanyRepository;
 import com.example.qltd.config.AbstractIntegrationTest;
+import com.example.qltd.job.dto.request.CreateJobRequest;
 import com.example.qltd.job.dto.request.UpdateJobRequest;
 import com.example.qltd.job.entity.Job;
 import com.example.qltd.job.enums.EmploymentType;
@@ -11,10 +12,16 @@ import com.example.qltd.job.enums.JobStatus;
 import com.example.qltd.job.enums.WorkingType;
 import com.example.qltd.job.repository.JobRepository;
 import com.example.qltd.job.support.JobTestFactory;
+import com.example.qltd.shared.enums.Role;
+import com.example.qltd.shared.enums.UserStatus;
+import com.example.qltd.user.entity.User;
+import com.example.qltd.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -38,6 +45,9 @@ class JobControllerIT
 
     @Autowired
     private CompanyRepository companyRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     private Company openAi;
 
@@ -64,6 +74,8 @@ class JobControllerIT
 
         jobRepository.deleteAll();
 
+        userRepository.deleteAll();
+
         companyRepository.deleteAll();
 
         openAi = companyRepository.save(
@@ -72,6 +84,25 @@ class JobControllerIT
         microsoft = companyRepository.save(
                 JobTestFactory
                         .secondActiveCompany());
+
+        userRepository.save(
+                User.builder()
+                        .fullName("Test Recruiter")
+                        .email("recruiter@test.com")
+                        .password("password")
+                        .role(Role.RECRUITER)
+                        .status(UserStatus.ACTIVE)
+                        .company(openAi)
+                        .build());
+
+        userRepository.save(
+                User.builder()
+                        .fullName("Test Admin")
+                        .email("admin@test.com")
+                        .password("password")
+                        .role(Role.ADMIN)
+                        .status(UserStatus.ACTIVE)
+                        .build());
     }
 
     private Job saveJob(
@@ -89,6 +120,111 @@ class JobControllerIT
         job.setSlug(slug);
 
         return jobRepository.save(job);
+    }
+
+    @Nested
+    @DisplayName("POST /api/jobs")
+    class CreateJobTest {
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Recruiter should create job for own company")
+        void recruiterShouldCreateJobForOwnCompany()
+                throws Exception {
+
+            CreateJobRequest request = JobTestFactory.createRequest();
+            request.setCompanyId(openAi.getId());
+
+            mockMvc.perform(
+                    post("/api/jobs")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.data.companyId")
+                            .value(openAi.getId()));
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Recruiter should not create job for another company")
+        void recruiterShouldNotCreateJobForAnotherCompany()
+                throws Exception {
+
+            CreateJobRequest request = JobTestFactory.createRequest();
+            request.setCompanyId(microsoft.getId());
+
+            long jobCount = jobRepository.count();
+
+            mockMvc.perform(
+                    post("/api/jobs")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.error").value("FORBIDDEN"));
+
+            assertThat(jobRepository.count()).isEqualTo(jobCount);
+        }
+
+        @Test
+        @WithMockUser(username = "unassigned@test.com", roles = "RECRUITER")
+        @DisplayName("Recruiter without company should not create job")
+        void recruiterWithoutCompanyShouldNotCreateJob()
+                throws Exception {
+
+            userRepository.save(
+                    User.builder()
+                            .fullName("Unassigned Recruiter")
+                            .email("unassigned@test.com")
+                            .password("password")
+                            .role(Role.RECRUITER)
+                            .status(UserStatus.ACTIVE)
+                            .build());
+
+            CreateJobRequest request = JobTestFactory.createRequest();
+            request.setCompanyId(openAi.getId());
+
+            mockMvc.perform(
+                    post("/api/jobs")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.error").value("FORBIDDEN"));
+        }
+
+        @Test
+        @WithMockUser(username = "admin@test.com", roles = "ADMIN")
+        @DisplayName("Admin should create job for any company")
+        void adminShouldCreateJobForAnyCompany()
+                throws Exception {
+
+            CreateJobRequest request = JobTestFactory.createRequest();
+            request.setCompanyId(microsoft.getId());
+
+            mockMvc.perform(
+                    post("/api/jobs")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.data.companyId")
+                            .value(microsoft.getId()));
+        }
+
+        @Test
+        @WithMockUser(username = "candidate@test.com", roles = "CANDIDATE")
+        @DisplayName("Candidate should not create job")
+        void candidateShouldNotCreateJob()
+                throws Exception {
+
+            CreateJobRequest request = JobTestFactory.createRequest();
+            request.setCompanyId(openAi.getId());
+
+            mockMvc.perform(
+                    post("/api/jobs")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isForbidden());
+        }
     }
 
     @Nested
@@ -1444,6 +1580,32 @@ class JobControllerIT
         }
 
         @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Recruiter should not update another company's job")
+        void recruiterShouldNotUpdateAnotherCompanyJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Microsoft Job",
+                    "microsoft-job",
+                    microsoft,
+                    JobStatus.DRAFT);
+
+            UpdateJobRequest request = new UpdateJobRequest();
+            request.setTitle("Unauthorized Update");
+
+            mockMvc.perform(
+                    put("/api/jobs/{id}", job.getId())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.error").value("FORBIDDEN"));
+
+            Job unchanged = jobRepository.findById(job.getId()).orElseThrow();
+            assertThat(unchanged.getTitle()).isEqualTo("Microsoft Job");
+        }
+
+        @Test
         @WithMockUser(username = "candidate@test.com", roles = "CANDIDATE")
         @DisplayName("Candidate should not update job")
         void candidateShouldNotUpdateJob()
@@ -1630,6 +1792,27 @@ class JobControllerIT
                             jsonPath("$.error")
                                     .value(
                                             "RESOURCE_NOT_FOUND"));
+        }
+
+        @Test
+        @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+        @DisplayName("Recruiter should not delete another company's job")
+        void recruiterShouldNotDeleteAnotherCompanyJob()
+                throws Exception {
+
+            Job job = saveJobWithStatus(
+                    "Microsoft Draft",
+                    "microsoft-draft",
+                    microsoft,
+                    JobStatus.DRAFT);
+
+            mockMvc.perform(
+                    delete("/api/jobs/{id}", job.getId()))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.error").value("FORBIDDEN"));
+
+            Job unchanged = jobRepository.findById(job.getId()).orElseThrow();
+            assertThat(unchanged.getDeleted()).isFalse();
         }
 
         @Test
@@ -2021,6 +2204,28 @@ class JobControllerIT
                     .andExpect(
                             status().isNotFound());
         }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = { "publish", "close", "expire", "archive" })
+    @WithMockUser(username = "recruiter@test.com", roles = "RECRUITER")
+    @DisplayName("Recruiter should not change status of another company's job")
+    void recruiterShouldNotChangeStatusOfAnotherCompanyJob(
+            String action) throws Exception {
+
+        Job job = saveJobWithStatus(
+                "Microsoft Job",
+                "microsoft-status-job-" + action,
+                microsoft,
+                JobStatus.DRAFT);
+
+        mockMvc.perform(
+                post("/api/jobs/{id}/{action}", job.getId(), action))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value("FORBIDDEN"));
+
+        Job unchanged = jobRepository.findById(job.getId()).orElseThrow();
+        assertThat(unchanged.getStatus()).isEqualTo(JobStatus.DRAFT);
     }
 
     @Nested

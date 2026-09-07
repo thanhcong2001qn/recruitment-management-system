@@ -1,6 +1,5 @@
 package com.example.qltd.common.security;
 
-import com.example.qltd.common.exception.BusinessRuleException;
 import com.example.qltd.common.exception.ForbiddenException;
 import com.example.qltd.shared.enums.Role;
 import com.example.qltd.user.entity.User;
@@ -14,7 +13,7 @@ public class CompanyAuthorizationService {
             Long companyId) {
 
         if (user == null) {
-            throw new BusinessRuleException(
+            throw new ForbiddenException(
                     "User is required.");
         }
 
@@ -23,12 +22,12 @@ public class CompanyAuthorizationService {
         }
 
         if (user.getRole() != Role.RECRUITER) {
-            throw new BusinessRuleException(
+            throw new ForbiddenException(
                     "User is not allowed to manage company resources.");
         }
 
         if (user.getCompany() == null) {
-            throw new BusinessRuleException(
+            throw new ForbiddenException(
                     "Recruiter is not assigned to a company.");
         }
 
@@ -36,7 +35,7 @@ public class CompanyAuthorizationService {
                 .getId()
                 .equals(companyId)) {
 
-            throw new BusinessRuleException(
+            throw new ForbiddenException(
                     "Recruiter cannot manage resources of another company.");
         }
     }
