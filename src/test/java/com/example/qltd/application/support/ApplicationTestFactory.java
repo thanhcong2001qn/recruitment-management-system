@@ -48,6 +48,21 @@ public final class ApplicationTestFactory {
     }
 
     public static User recruiter(
+            String email,
+            Company company) {
+
+        return User.builder()
+                .fullName("Test Recruiter")
+                .email(email)
+                .password("password")
+                .phone("0900000001")
+                .role(Role.RECRUITER)
+                .status(UserStatus.ACTIVE)
+                .company(company)
+                .build();
+    }
+
+    public static User recruiter(
             String email) {
 
         return User.builder()

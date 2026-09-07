@@ -4,6 +4,7 @@ import com.example.qltd.common.dto.PagedResponse;
 import com.example.qltd.common.exception.BusinessRuleException;
 import com.example.qltd.common.exception.ResourceNotFoundException;
 import com.example.qltd.common.mapper.PageMapper;
+import com.example.qltd.common.security.CompanyAuthorizationService;
 import com.example.qltd.company.entity.Company;
 import com.example.qltd.company.repository.CompanyRepository;
 import com.example.qltd.job.dto.request.CreateJobRequest;
@@ -17,6 +18,9 @@ import com.example.qltd.job.repository.JobRepository;
 import com.example.qltd.job.service.impl.JobServiceImpl;
 import com.example.qltd.job.support.JobTestFactory;
 import com.example.qltd.job.validator.JobValidator;
+import com.example.qltd.user.entity.User;
+import com.example.qltd.user.repository.UserRepository;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -52,6 +56,9 @@ class JobServiceImplTest {
     private CompanyRepository companyRepository;
 
     @Mock
+    private UserRepository userRepository;
+
+    @Mock
     private JobMapper jobMapper;
 
     @Mock
@@ -65,6 +72,9 @@ class JobServiceImplTest {
 
     @Mock
     private JobStatusService jobStatusService;
+
+    @Mock
+    private CompanyAuthorizationService companyAuthorizationService;
 
     @InjectMocks
     private JobServiceImpl jobService;
@@ -728,10 +738,19 @@ class JobServiceImplTest {
         @DisplayName("Should update DRAFT job successfully")
         void shouldUpdateDraftJobSuccessfully() {
 
+            User recruiter = new User();
+            recruiter.setEmail("recruiter@example.com");
+
             when(
                     jobRepository.findByIdAndDeletedFalse(1L))
                     .thenReturn(
                             Optional.of(job));
+
+            when(
+                    userRepository.findByEmailIgnoreCase(
+                            "recruiter@example.com"))
+                    .thenReturn(
+                            Optional.of(recruiter));
 
             when(
                     jobRepository.save(job))
@@ -743,10 +762,23 @@ class JobServiceImplTest {
 
             JobResponse result = jobService.updateJob(
                     1L,
+                    "recruiter@example.com",
                     updateRequest);
 
             assertThat(result)
                     .isSameAs(response);
+
+            verify(jobRepository)
+                    .findByIdAndDeletedFalse(1L);
+
+            verify(userRepository)
+                    .findByEmailIgnoreCase(
+                            "recruiter@example.com");
+
+            verify(companyAuthorizationService)
+                    .checkCompanyAccess(
+                            recruiter,
+                            job.getCompany().getId());
 
             verify(jobValidator)
                     .validateUpdate(
@@ -760,6 +792,9 @@ class JobServiceImplTest {
 
             verify(jobRepository)
                     .save(job);
+
+            verify(jobMapper)
+                    .toResponse(job);
         }
 
         @Test
@@ -772,10 +807,20 @@ class JobServiceImplTest {
             updateRequest.setTitle(
                     "Senior Java Backend Developer");
 
+            User recruiter = new User();
+            recruiter.setEmail(
+                    "recruiter@example.com");
+
             when(
                     jobRepository.findByIdAndDeletedFalse(1L))
                     .thenReturn(
                             Optional.of(job));
+
+            when(
+                    userRepository.findByEmailIgnoreCase(
+                            "recruiter@example.com"))
+                    .thenReturn(
+                            Optional.of(recruiter));
 
             when(
                     jobSlugService.generate(
@@ -794,16 +839,37 @@ class JobServiceImplTest {
 
             jobService.updateJob(
                     1L,
+                    "recruiter@example.com",
                     updateRequest);
 
             assertThat(job.getSlug())
                     .isEqualTo(
                             "senior-java-backend-developer");
 
-            verify(jobSlugService)
+            verify(
+                    userRepository)
+                    .findByEmailIgnoreCase(
+                            "recruiter@example.com");
+
+            verify(
+                    companyAuthorizationService)
+                    .checkCompanyAccess(
+                            recruiter,
+                            job.getCompany().getId());
+
+            verify(
+                    jobSlugService)
                     .generate(
                             "Senior Java Backend Developer",
                             1L);
+
+            verify(
+                    jobRepository)
+                    .save(job);
+
+            verify(
+                    jobMapper)
+                    .toResponse(job);
         }
 
         @Test
@@ -819,10 +885,20 @@ class JobServiceImplTest {
             updateRequest.setTitle(
                     "Java Backend Developer");
 
+            User recruiter = new User();
+            recruiter.setEmail(
+                    "recruiter@example.com");
+
             when(
                     jobRepository.findByIdAndDeletedFalse(1L))
                     .thenReturn(
                             Optional.of(job));
+
+            when(
+                    userRepository.findByEmailIgnoreCase(
+                            "recruiter@example.com"))
+                    .thenReturn(
+                            Optional.of(recruiter));
 
             when(
                     jobRepository.save(job))
@@ -834,11 +910,17 @@ class JobServiceImplTest {
 
             jobService.updateJob(
                     1L,
+                    "recruiter@example.com",
                     updateRequest);
 
             assertThat(job.getSlug())
                     .isEqualTo(
                             "java-backend-developer");
+
+            verify(companyAuthorizationService)
+                    .checkCompanyAccess(
+                            recruiter,
+                            job.getCompany().getId());
 
             verify(
                     jobSlugService,
@@ -859,6 +941,7 @@ class JobServiceImplTest {
 
             assertThatThrownBy(() -> jobService.updateJob(
                     999L,
+                    "recruiter@example.com",
                     updateRequest))
                     .isInstanceOf(
                             ResourceNotFoundException.class)
@@ -873,6 +956,19 @@ class JobServiceImplTest {
                             any());
 
             verify(
+                    userRepository,
+                    never())
+                    .findByEmailIgnoreCase(
+                            anyString());
+
+            verify(
+                    companyAuthorizationService,
+                    never())
+                    .checkCompanyAccess(
+                            any(),
+                            anyLong());
+
+            verify(
                     jobRepository,
                     never())
                     .save(any());
@@ -885,10 +981,20 @@ class JobServiceImplTest {
             job.setStatus(
                     JobStatus.CLOSED);
 
+            User recruiter = new User();
+            recruiter.setEmail(
+                    "recruiter@example.com");
+
             when(
                     jobRepository.findByIdAndDeletedFalse(1L))
                     .thenReturn(
                             Optional.of(job));
+
+            when(
+                    userRepository.findByEmailIgnoreCase(
+                            "recruiter@example.com"))
+                    .thenReturn(
+                            Optional.of(recruiter));
 
             doThrow(
                     new BusinessRuleException(
@@ -900,11 +1006,24 @@ class JobServiceImplTest {
 
             assertThatThrownBy(() -> jobService.updateJob(
                     1L,
+                    "recruiter@example.com",
                     updateRequest))
                     .isInstanceOf(
                             BusinessRuleException.class)
                     .hasMessage(
                             "Job cannot be updated in its current status.");
+
+            verify(
+                    companyAuthorizationService)
+                    .checkCompanyAccess(
+                            recruiter,
+                            job.getCompany().getId());
+
+            verify(
+                    jobValidator)
+                    .validateUpdate(
+                            job,
+                            updateRequest);
 
             verify(
                     jobRepository,
@@ -926,10 +1045,20 @@ class JobServiceImplTest {
             job.setStatus(
                     JobStatus.EXPIRED);
 
+            User recruiter = new User();
+            recruiter.setEmail(
+                    "recruiter@example.com");
+
             when(
                     jobRepository.findByIdAndDeletedFalse(1L))
                     .thenReturn(
                             Optional.of(job));
+
+            when(
+                    userRepository.findByEmailIgnoreCase(
+                            "recruiter@example.com"))
+                    .thenReturn(
+                            Optional.of(recruiter));
 
             doThrow(
                     new BusinessRuleException(
@@ -941,14 +1070,30 @@ class JobServiceImplTest {
 
             assertThatThrownBy(() -> jobService.updateJob(
                     1L,
+                    "recruiter@example.com",
                     updateRequest))
                     .isInstanceOf(
-                            BusinessRuleException.class);
+                            BusinessRuleException.class)
+                    .hasMessage(
+                            "Job cannot be updated in its current status.");
+
+            verify(
+                    companyAuthorizationService)
+                    .checkCompanyAccess(
+                            recruiter,
+                            job.getCompany().getId());
 
             verify(
                     jobRepository,
                     never())
                     .save(any());
+
+            verify(
+                    jobSlugService,
+                    never())
+                    .generate(
+                            anyString(),
+                            anyLong());
         }
 
         @Test
@@ -958,10 +1103,20 @@ class JobServiceImplTest {
             job.setStatus(
                     JobStatus.ARCHIVED);
 
+            User recruiter = new User();
+            recruiter.setEmail(
+                    "recruiter@example.com");
+
             when(
                     jobRepository.findByIdAndDeletedFalse(1L))
                     .thenReturn(
                             Optional.of(job));
+
+            when(
+                    userRepository.findByEmailIgnoreCase(
+                            "recruiter@example.com"))
+                    .thenReturn(
+                            Optional.of(recruiter));
 
             doThrow(
                     new BusinessRuleException(
@@ -973,14 +1128,30 @@ class JobServiceImplTest {
 
             assertThatThrownBy(() -> jobService.updateJob(
                     1L,
+                    "recruiter@example.com",
                     updateRequest))
                     .isInstanceOf(
-                            BusinessRuleException.class);
+                            BusinessRuleException.class)
+                    .hasMessage(
+                            "Job cannot be updated in its current status.");
+
+            verify(
+                    companyAuthorizationService)
+                    .checkCompanyAccess(
+                            recruiter,
+                            job.getCompany().getId());
 
             verify(
                     jobRepository,
                     never())
                     .save(any());
+
+            verify(
+                    jobSlugService,
+                    never())
+                    .generate(
+                            anyString(),
+                            anyLong());
         }
     }
 
@@ -997,24 +1168,49 @@ class JobServiceImplTest {
 
             job.setDeleted(false);
 
+            User recruiter = new User();
+            recruiter.setEmail(
+                    "recruiter@example.com");
+
             when(
                     jobRepository.findByIdAndDeletedFalse(1L))
                     .thenReturn(
                             Optional.of(job));
 
             when(
+                    userRepository.findByEmailIgnoreCase(
+                            "recruiter@example.com"))
+                    .thenReturn(
+                            Optional.of(recruiter));
+
+            when(
                     jobRepository.save(job))
                     .thenReturn(job);
 
-            jobService.deleteJob(1L);
+            jobService.deleteJob(
+                    1L,
+                    "recruiter@example.com");
 
             assertThat(job.getDeleted())
                     .isTrue();
 
-            verify(jobValidator)
+            verify(
+                    userRepository)
+                    .findByEmailIgnoreCase(
+                            "recruiter@example.com");
+
+            verify(
+                    companyAuthorizationService)
+                    .checkCompanyAccess(
+                            recruiter,
+                            job.getCompany().getId());
+
+            verify(
+                    jobValidator)
                     .validateDelete(job);
 
-            verify(jobRepository)
+            verify(
+                    jobRepository)
                     .save(job);
         }
 
@@ -1025,21 +1221,51 @@ class JobServiceImplTest {
             job.setStatus(
                     JobStatus.CLOSED);
 
+            job.setDeleted(false);
+
+            User recruiter = new User();
+            recruiter.setEmail(
+                    "recruiter@example.com");
+
             when(
                     jobRepository.findByIdAndDeletedFalse(1L))
                     .thenReturn(
                             Optional.of(job));
 
             when(
+                    userRepository.findByEmailIgnoreCase(
+                            "recruiter@example.com"))
+                    .thenReturn(
+                            Optional.of(recruiter));
+
+            when(
                     jobRepository.save(job))
                     .thenReturn(job);
 
-            jobService.deleteJob(1L);
+            jobService.deleteJob(
+                    1L,
+                    "recruiter@example.com");
 
             assertThat(job.getDeleted())
                     .isTrue();
 
-            verify(jobRepository)
+            verify(
+                    userRepository)
+                    .findByEmailIgnoreCase(
+                            "recruiter@example.com");
+
+            verify(
+                    companyAuthorizationService)
+                    .checkCompanyAccess(
+                            recruiter,
+                            job.getCompany().getId());
+
+            verify(
+                    jobValidator)
+                    .validateDelete(job);
+
+            verify(
+                    jobRepository)
                     .save(job);
         }
 
@@ -1050,10 +1276,22 @@ class JobServiceImplTest {
             job.setStatus(
                     JobStatus.PUBLISHED);
 
+            job.setDeleted(false);
+
+            User recruiter = new User();
+            recruiter.setEmail(
+                    "recruiter@example.com");
+
             when(
                     jobRepository.findByIdAndDeletedFalse(1L))
                     .thenReturn(
                             Optional.of(job));
+
+            when(
+                    userRepository.findByEmailIgnoreCase(
+                            "recruiter@example.com"))
+                    .thenReturn(
+                            Optional.of(recruiter));
 
             doThrow(
                     new BusinessRuleException(
@@ -1061,7 +1299,9 @@ class JobServiceImplTest {
                     .when(jobValidator)
                     .validateDelete(job);
 
-            assertThatThrownBy(() -> jobService.deleteJob(1L))
+            assertThatThrownBy(() -> jobService.deleteJob(
+                    1L,
+                    "recruiter@example.com"))
                     .isInstanceOf(
                             BusinessRuleException.class)
                     .hasMessage(
@@ -1069,6 +1309,21 @@ class JobServiceImplTest {
 
             assertThat(job.getDeleted())
                     .isFalse();
+
+            verify(
+                    userRepository)
+                    .findByEmailIgnoreCase(
+                            "recruiter@example.com");
+
+            verify(
+                    companyAuthorizationService)
+                    .checkCompanyAccess(
+                            recruiter,
+                            job.getCompany().getId());
+
+            verify(
+                    jobValidator)
+                    .validateDelete(job);
 
             verify(
                     jobRepository,
@@ -1085,21 +1340,36 @@ class JobServiceImplTest {
                     .thenReturn(
                             Optional.empty());
 
-            assertThatThrownBy(() -> jobService.deleteJob(999L))
+            assertThatThrownBy(() -> jobService.deleteJob(
+                    999L,
+                    "recruiter@example.com"))
                     .isInstanceOf(
                             ResourceNotFoundException.class)
                     .hasMessage(
                             "Job not found.");
 
             verify(
-                    jobRepository,
+                    userRepository,
                     never())
-                    .save(any());
+                    .findByEmailIgnoreCase(
+                            anyString());
+
+            verify(
+                    companyAuthorizationService,
+                    never())
+                    .checkCompanyAccess(
+                            any(),
+                            anyLong());
 
             verify(
                     jobValidator,
                     never())
                     .validateDelete(any());
+
+            verify(
+                    jobRepository,
+                    never())
+                    .save(any());
         }
 
         @Test
@@ -1111,9 +1381,31 @@ class JobServiceImplTest {
                     .thenReturn(
                             Optional.empty());
 
-            assertThatThrownBy(() -> jobService.deleteJob(1L))
+            assertThatThrownBy(() -> jobService.deleteJob(
+                    1L,
+                    "recruiter@example.com"))
                     .isInstanceOf(
-                            ResourceNotFoundException.class);
+                            ResourceNotFoundException.class)
+                    .hasMessage(
+                            "Job not found.");
+
+            verify(
+                    userRepository,
+                    never())
+                    .findByEmailIgnoreCase(
+                            anyString());
+
+            verify(
+                    companyAuthorizationService,
+                    never())
+                    .checkCompanyAccess(
+                            any(),
+                            anyLong());
+
+            verify(
+                    jobValidator,
+                    never())
+                    .validateDelete(any());
 
             verify(
                     jobRepository,
@@ -1133,10 +1425,20 @@ class JobServiceImplTest {
             job.setStatus(
                     JobStatus.DRAFT);
 
+            User recruiter = new User();
+            recruiter.setEmail(
+                    "recruiter@example.com");
+
             when(
                     jobRepository.findByIdAndDeletedFalse(1L))
                     .thenReturn(
                             Optional.of(job));
+
+            when(
+                    userRepository.findByEmailIgnoreCase(
+                            "recruiter@example.com"))
+                    .thenReturn(
+                            Optional.of(recruiter));
 
             doAnswer(invocation -> {
                 job.setStatus(
@@ -1158,6 +1460,7 @@ class JobServiceImplTest {
 
             JobResponse result = jobService.changeStatus(
                     1L,
+                    "recruiter@example.com",
                     JobStatus.PUBLISHED);
 
             assertThat(result)
@@ -1167,13 +1470,30 @@ class JobServiceImplTest {
                     .isEqualTo(
                             JobStatus.PUBLISHED);
 
-            verify(jobStatusService)
+            verify(
+                    userRepository)
+                    .findByEmailIgnoreCase(
+                            "recruiter@example.com");
+
+            verify(
+                    companyAuthorizationService)
+                    .checkCompanyAccess(
+                            recruiter,
+                            job.getCompany().getId());
+
+            verify(
+                    jobStatusService)
                     .transition(
                             job,
                             JobStatus.PUBLISHED);
 
-            verify(jobRepository)
+            verify(
+                    jobRepository)
                     .save(job);
+
+            verify(
+                    jobMapper)
+                    .toResponse(job);
         }
 
         @Test
@@ -1187,11 +1507,25 @@ class JobServiceImplTest {
 
             assertThatThrownBy(() -> jobService.changeStatus(
                     999L,
+                    "recruiter@example.com",
                     JobStatus.PUBLISHED))
                     .isInstanceOf(
                             ResourceNotFoundException.class)
                     .hasMessage(
                             "Job not found.");
+
+            verify(
+                    userRepository,
+                    never())
+                    .findByEmailIgnoreCase(
+                            anyString());
+
+            verify(
+                    companyAuthorizationService,
+                    never())
+                    .checkCompanyAccess(
+                            any(),
+                            anyLong());
 
             verify(
                     jobStatusService,
@@ -1204,6 +1538,11 @@ class JobServiceImplTest {
                     jobRepository,
                     never())
                     .save(any());
+
+            verify(
+                    jobMapper,
+                    never())
+                    .toResponse(any());
         }
     }
 }

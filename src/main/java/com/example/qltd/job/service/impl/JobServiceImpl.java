@@ -13,11 +13,15 @@ import com.example.qltd.job.service.JobService;
 import com.example.qltd.job.service.JobSlugService;
 import com.example.qltd.job.service.JobStatusService;
 import com.example.qltd.job.validator.JobValidator;
+import com.example.qltd.user.entity.User;
+import com.example.qltd.user.repository.UserRepository;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.example.qltd.common.dto.PagedResponse;
 import com.example.qltd.common.mapper.PageMapper;
+import com.example.qltd.common.security.CompanyAuthorizationService;
 import com.example.qltd.job.dto.request.JobSearchRequest;
 import com.example.qltd.job.dto.request.UpdateJobRequest;
 import com.example.qltd.job.specification.JobSpecification;
@@ -43,6 +47,10 @@ public class JobServiceImpl implements JobService {
     private final PageMapper pageMapper;
 
     private final JobStatusService jobStatusService;
+
+    private final CompanyAuthorizationService companyAuthorizationService;
+
+    private final UserRepository userRepository;
 
     @Override
     public JobResponse createJob(CreateJobRequest request) {
@@ -143,13 +151,23 @@ public class JobServiceImpl implements JobService {
 
     @Override
     public JobResponse updateJob(
-            Long id,
+            Long id, String recruiterEmail,
             UpdateJobRequest request) {
 
         Job job = jobRepository
                 .findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Job not found."));
+        User user = userRepository
+                .findByEmailIgnoreCase(
+                        recruiterEmail)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User not found."));
+
+        companyAuthorizationService
+                .checkCompanyAccess(
+                        user,
+                        job.getCompany().getId());
 
         jobValidator.validateUpdate(
                 job,
@@ -181,12 +199,23 @@ public class JobServiceImpl implements JobService {
     }
 
     @Override
-    public void deleteJob(Long id) {
+    public void deleteJob(Long id, String recruiterEmail) {
 
         Job job = jobRepository
                 .findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Job not found."));
+
+        User user = userRepository
+                .findByEmailIgnoreCase(
+                        recruiterEmail)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User not found."));
+
+        companyAuthorizationService
+                .checkCompanyAccess(
+                        user,
+                        job.getCompany().getId());
 
         jobValidator.validateDelete(job);
 
@@ -197,13 +226,24 @@ public class JobServiceImpl implements JobService {
 
     @Override
     public JobResponse changeStatus(
-            Long id,
+            Long id, String recruiterEmail,
             JobStatus targetStatus) {
 
         Job job = jobRepository
                 .findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Job not found."));
+
+        User user = userRepository
+                .findByEmailIgnoreCase(
+                        recruiterEmail)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User not found."));
+
+        companyAuthorizationService
+                .checkCompanyAccess(
+                        user,
+                        job.getCompany().getId());
 
         jobStatusService.transition(
                 job,

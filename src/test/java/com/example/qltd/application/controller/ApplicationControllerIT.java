@@ -9,7 +9,9 @@ import com.example.qltd.application.support.ApplicationTestFactory;
 import com.example.qltd.company.entity.Company;
 import com.example.qltd.company.repository.CompanyRepository;
 import com.example.qltd.config.AbstractIntegrationTest;
+import com.example.qltd.job.dto.request.UpdateJobRequest;
 import com.example.qltd.job.entity.Job;
+import com.example.qltd.job.enums.JobStatus;
 import com.example.qltd.job.repository.JobRepository;
 import com.example.qltd.user.entity.User;
 import com.example.qltd.user.repository.UserRepository;
@@ -25,9 +27,11 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -55,6 +59,10 @@ class ApplicationControllerIT
 
     private Company company;
 
+    private Company companyA;
+
+    private Company companyB;
+
     @BeforeEach
     void setUp() {
 
@@ -67,6 +75,12 @@ class ApplicationControllerIT
         userRepository.deleteAll();
 
         company = companyRepository.save(
+                ApplicationTestFactory.company());
+
+        companyA = companyRepository.save(
+                ApplicationTestFactory.company());
+
+        companyB = companyRepository.save(
                 ApplicationTestFactory.company());
     }
 
@@ -438,11 +452,13 @@ class ApplicationControllerIT
         void recruiterShouldMoveToScreening()
                 throws Exception {
 
+            userRepository.save(
+                    ApplicationTestFactory.recruiter(
+                            "recruiter@test.com",
+                            company));
+
             User candidate = saveCandidate(
                     "candidate@test.com");
-
-            saveRecruiter(
-                    "recruiter@test.com");
 
             Job job = savePublishedJob();
 
@@ -488,6 +504,11 @@ class ApplicationControllerIT
         @DisplayName("Should reject invalid APPLIED to HIRED transition")
         void shouldRejectInvalidTransition()
                 throws Exception {
+
+            userRepository.save(
+                    ApplicationTestFactory.recruiter(
+                            "recruiter@test.com",
+                            company));
 
             User candidate = saveCandidate(
                     "candidate@test.com");
@@ -566,6 +587,10 @@ class ApplicationControllerIT
         @DisplayName("Admin should change application status")
         void adminShouldChangeStatus()
                 throws Exception {
+
+            userRepository.save(
+                    ApplicationTestFactory.admin(
+                            "admin@test.com"));
 
             User candidate = saveCandidate(
                     "candidate@test.com");
@@ -746,6 +771,11 @@ class ApplicationControllerIT
         void recruiterShouldGetPagedApplications()
                 throws Exception {
 
+            userRepository.save(
+                    ApplicationTestFactory.recruiter(
+                            "recruiter@test.com",
+                            company));
+
             User candidate1 = saveCandidate(
                     "candidate1@test.com");
 
@@ -786,6 +816,11 @@ class ApplicationControllerIT
         @DisplayName("Should filter applications by status")
         void shouldFilterApplicationsByStatus()
                 throws Exception {
+
+            userRepository.save(
+                    ApplicationTestFactory.recruiter(
+                            "recruiter@test.com",
+                            company));
 
             User candidate1 = saveCandidate(
                     "candidate1@test.com");
@@ -833,6 +868,11 @@ class ApplicationControllerIT
         void shouldPaginateApplications()
                 throws Exception {
 
+            userRepository.save(
+                    ApplicationTestFactory.recruiter(
+                            "recruiter@test.com",
+                            company));
+
             Job job = savePublishedJob();
 
             for (int i = 1; i <= 15; i++) {
@@ -871,6 +911,11 @@ class ApplicationControllerIT
         @DisplayName("Should only return applications belonging to requested job")
         void shouldReturnApplicationsOnlyForRequestedJob()
                 throws Exception {
+
+            userRepository.save(
+                    ApplicationTestFactory.recruiter(
+                            "recruiter@test.com",
+                            company));
 
             User candidate1 = saveCandidate(
                     "candidate1@test.com");
@@ -953,5 +998,313 @@ class ApplicationControllerIT
                                     .value(
                                             "RESOURCE_NOT_FOUND"));
         }
+    }
+
+    @Test
+    @WithMockUser(username = "recruiter-a@test.com", roles = "RECRUITER")
+    @DisplayName("Recruiter A should access applications of Company A")
+    void recruiterAShouldAccessOwnCompanyApplications()
+            throws Exception {
+
+        User recruiter = userRepository.save(
+                ApplicationTestFactory.recruiter(
+                        "recruiter-a@test.com",
+                        companyA));
+
+        User candidate = saveCandidate(
+                "candidate@test.com");
+
+        Job job = jobRepository.save(
+                ApplicationTestFactory.publishedJob(
+                        companyA));
+
+        saveApplication(
+                job,
+                candidate);
+
+        mockMvc.perform(
+                get(
+                        "/api/jobs/{jobId}/applications",
+                        job.getId()))
+                .andExpect(
+                        status().isOk())
+                .andExpect(
+                        jsonPath("$.data.totalElements")
+                                .value(1));
+    }
+
+    @Test
+    @WithMockUser(username = "recruiter-a@test.com", roles = "RECRUITER")
+    @DisplayName("Recruiter A should not access Company B applications")
+    void recruiterAShouldNotAccessCompanyBApplications()
+            throws Exception {
+
+        userRepository.save(
+                ApplicationTestFactory.recruiter(
+                        "recruiter-a@test.com",
+                        companyA));
+
+        Job jobB = jobRepository.save(
+                ApplicationTestFactory.publishedJob(
+                        companyB));
+
+        mockMvc.perform(
+                get(
+                        "/api/jobs/{jobId}/applications",
+                        jobB.getId()))
+                .andExpect(
+                        status().isForbidden())
+                .andExpect(
+                        jsonPath("$.error")
+                                .value("FORBIDDEN"))
+                .andExpect(
+                        jsonPath("$.message")
+                                .value(
+                                        "Recruiter cannot manage applications for another company."));
+    }
+
+    @Test
+    @WithMockUser(username = "recruiter-a@test.com", roles = "RECRUITER")
+    @DisplayName("Recruiter A should not change Company B application")
+    void recruiterAShouldNotChangeCompanyBApplication()
+            throws Exception {
+
+        userRepository.save(
+                ApplicationTestFactory.recruiter(
+                        "recruiter-a@test.com",
+                        companyA));
+
+        User candidate = saveCandidate(
+                "candidate@test.com");
+
+        Job jobB = jobRepository.save(
+                ApplicationTestFactory.publishedJob(
+                        companyB));
+
+        Application application = saveApplication(
+                jobB,
+                candidate);
+
+        ChangeApplicationStatusRequest request = ApplicationTestFactory.statusRequest(
+                ApplicationStatus.SCREENING);
+
+        mockMvc.perform(
+                patch(
+                        "/api/applications/{id}/status",
+                        application.getId())
+                        .contentType(
+                                MediaType.APPLICATION_JSON)
+                        .content(
+                                objectMapper.writeValueAsString(
+                                        request)))
+                .andExpect(
+                        status().isForbidden());
+
+        Application unchanged = applicationRepository
+                .findById(
+                        application.getId())
+                .orElseThrow();
+
+        assertThat(
+                unchanged.getStatus())
+                .isEqualTo(
+                        ApplicationStatus.APPLIED);
+    }
+
+    @Test
+    @WithMockUser(username = "admin@test.com", roles = "ADMIN")
+    @DisplayName("Admin should access applications of every company")
+    void adminShouldAccessEveryCompany()
+            throws Exception {
+
+        userRepository.save(
+                ApplicationTestFactory.admin(
+                        "admin@test.com"));
+
+        User candidate = saveCandidate(
+                "candidate@test.com");
+
+        Job jobB = jobRepository.save(
+                ApplicationTestFactory.publishedJob(
+                        companyB));
+
+        saveApplication(
+                jobB,
+                candidate);
+
+        mockMvc.perform(
+                get(
+                        "/api/jobs/{jobId}/applications",
+                        jobB.getId()))
+                .andExpect(
+                        status().isOk())
+                .andExpect(
+                        jsonPath("$.data.totalElements")
+                                .value(1));
+    }
+
+    @Test
+    @WithMockUser(username = "orphan@test.com", roles = "RECRUITER")
+    @DisplayName("Recruiter without company should be forbidden")
+    void recruiterWithoutCompanyShouldBeForbidden()
+            throws Exception {
+
+        userRepository.save(
+                ApplicationTestFactory.recruiter(
+                        "orphan@test.com",
+                        null));
+
+        Job job = jobRepository.save(
+                ApplicationTestFactory.publishedJob(
+                        companyA));
+
+        mockMvc.perform(
+                get(
+                        "/api/jobs/{jobId}/applications",
+                        job.getId()))
+                .andExpect(
+                        status().isForbidden())
+                .andExpect(
+                        jsonPath("$.error")
+                                .value("FORBIDDEN"))
+                .andExpect(
+                        jsonPath("$.message")
+                                .value(
+                                        "Recruiter is not assigned to a company."));
+    }
+
+    @Test
+    @WithMockUser(username = "recruiter-a@test.com", roles = "RECRUITER")
+    @DisplayName("Recruiter A should update own company job")
+    void recruiterAShouldUpdateOwnCompanyJob()
+            throws Exception {
+
+        userRepository.save(
+                ApplicationTestFactory.recruiter(
+                        "recruiter-a@test.com",
+                        companyA));
+
+        Job job = jobRepository.save(
+                ApplicationTestFactory.publishedJob(
+                        companyA));
+
+        UpdateJobRequest request = new UpdateJobRequest();
+
+        request.setTitle(
+                "Senior Java Developer");
+
+        mockMvc.perform(
+                put(
+                        "/api/jobs/{id}",
+                        job.getId())
+                        .contentType(
+                                MediaType.APPLICATION_JSON)
+                        .content(
+                                objectMapper.writeValueAsString(
+                                        request)))
+                .andExpect(
+                        status().isOk());
+    }
+
+    @Test
+    @WithMockUser(username = "recruiter-a@test.com", roles = "RECRUITER")
+    @DisplayName("Recruiter A should not update Company B job")
+    void recruiterAShouldNotUpdateCompanyBJob()
+            throws Exception {
+
+        userRepository.save(
+                ApplicationTestFactory.recruiter(
+                        "recruiter-a@test.com",
+                        companyA));
+
+        Job jobB = jobRepository.save(
+                ApplicationTestFactory.publishedJob(
+                        companyB));
+
+        UpdateJobRequest request = new UpdateJobRequest();
+
+        request.setTitle(
+                "Hacked Job");
+
+        mockMvc.perform(
+                put(
+                        "/api/jobs/{id}",
+                        jobB.getId())
+                        .contentType(
+                                MediaType.APPLICATION_JSON)
+                        .content(
+                                objectMapper.writeValueAsString(
+                                        request)))
+                .andExpect(
+                        status().isBadRequest());
+
+        Job unchanged = jobRepository.findById(
+                jobB.getId()).orElseThrow();
+
+        assertThat(
+                unchanged.getTitle())
+                .isNotEqualTo(
+                        "Hacked Job");
+    }
+
+    @Test
+    @WithMockUser(username = "recruiter-a@test.com", roles = "RECRUITER")
+    @DisplayName("Recruiter A should not delete Company B job")
+    void recruiterAShouldNotDeleteCompanyBJob()
+            throws Exception {
+
+        userRepository.save(
+                ApplicationTestFactory.recruiter(
+                        "recruiter-a@test.com",
+                        companyA));
+
+        Job jobB = jobRepository.save(
+                ApplicationTestFactory.publishedJob(
+                        companyB));
+
+        mockMvc.perform(
+                delete(
+                        "/api/jobs/{id}",
+                        jobB.getId()))
+                .andExpect(
+                        status().isBadRequest());
+
+        Job unchanged = jobRepository.findById(
+                jobB.getId()).orElseThrow();
+
+        assertThat(
+                unchanged.getDeleted())
+                .isFalse();
+    }
+
+    @Test
+    @WithMockUser(username = "recruiter-a@test.com", roles = "RECRUITER")
+    @DisplayName("Recruiter A should not publish Company B job")
+    void recruiterAShouldNotPublishCompanyBJob()
+            throws Exception {
+
+        userRepository.save(
+                ApplicationTestFactory.recruiter(
+                        "recruiter-a@test.com",
+                        companyA));
+
+        Job jobB = jobRepository.save(
+                ApplicationTestFactory.draftJob(
+                        companyB));
+
+        mockMvc.perform(
+                post(
+                        "/api/jobs/{id}/publish",
+                        jobB.getId()))
+                .andExpect(
+                        status().isBadRequest());
+
+        Job unchanged = jobRepository.findById(
+                jobB.getId()).orElseThrow();
+
+        assertThat(
+                unchanged.getStatus())
+                .isEqualTo(
+                        JobStatus.DRAFT);
     }
 }

@@ -28,13 +28,13 @@ public interface JobService {
             Long id);
 
     JobResponse updateJob(
-            Long id,
+            Long id, String recruiterEmail,
             UpdateJobRequest request);
 
     void deleteJob(
-            Long id);
+            Long id, String recruiterEmail);
 
     JobResponse changeStatus(
-            Long id,
+            Long id, String recruiterEmail,
             JobStatus targetStatus);
 }

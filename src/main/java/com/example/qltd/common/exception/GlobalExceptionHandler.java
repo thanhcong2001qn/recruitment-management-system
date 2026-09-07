@@ -148,4 +148,21 @@ public class GlobalExceptionHandler {
                 .badRequest()
                 .body(apiError);
     }
+
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ApiError> handleForbiddenException(
+            ForbiddenException ex) {
+
+        ApiError apiError = ApiError.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.FORBIDDEN.value())
+                .error("FORBIDDEN")
+                .message(ex.getMessage())
+                .errors(null)
+                .build();
+
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(apiError);
+    }
 }

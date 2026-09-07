@@ -14,6 +14,7 @@ import com.example.qltd.application.validator.ApplicationValidator;
 import com.example.qltd.common.dto.PagedResponse;
 import com.example.qltd.common.exception.BusinessRuleException;
 import com.example.qltd.common.exception.DuplicateResourceException;
+import com.example.qltd.common.exception.ForbiddenException;
 import com.example.qltd.common.exception.ResourceNotFoundException;
 import com.example.qltd.common.mapper.PageMapper;
 import com.example.qltd.company.entity.Company;
@@ -42,6 +43,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -69,6 +71,9 @@ class ApplicationServiceImplTest {
 
     @Mock
     private PageMapper pageMapper;
+
+    @Mock
+    private ApplicationAuthorizationService authorizationService;
 
     @InjectMocks
     private ApplicationServiceImpl applicationService;
@@ -413,18 +418,32 @@ class ApplicationServiceImplTest {
     class ChangeStatusTest {
 
         @Test
-        @DisplayName("Should change application status")
-        void shouldChangeApplicationStatus() {
+        @DisplayName("Should allow recruiter to change status of own company application")
+        void shouldAllowRecruiterToChangeOwnCompanyApplication() {
 
-            ChangeApplicationStatusRequest request = ApplicationTestFactory
-                    .statusRequest(
-                            ApplicationStatus.SCREENING);
+            User recruiter = ApplicationTestFactory.recruiter(
+                    "recruiter@test.com",
+                    company);
+
+            ChangeApplicationStatusRequest request = ApplicationTestFactory.statusRequest(
+                    ApplicationStatus.SCREENING);
 
             when(
-                    applicationRepository
-                            .findById(1L))
+                    applicationRepository.findById(1L))
                     .thenReturn(
                             Optional.of(application));
+
+            when(
+                    userRepository.findByEmailIgnoreCase(
+                            "recruiter@test.com"))
+                    .thenReturn(
+                            Optional.of(recruiter));
+
+            doNothing()
+                    .when(authorizationService)
+                    .checkCanManage(
+                            application,
+                            recruiter);
 
             doAnswer(invocation -> {
                 application.setStatus(
@@ -446,57 +465,109 @@ class ApplicationServiceImplTest {
                             application))
                     .thenReturn(response);
 
-            ApplicationResponse result = applicationService
-                    .changeStatus(
-                            1L,
-                            request);
+            ApplicationResponse result = applicationService.changeStatus(
+                    1L,
+                    "recruiter@test.com",
+                    request);
 
             assertThat(result)
                     .isSameAs(response);
 
-            assertThat(
-                    application.getStatus())
-                    .isEqualTo(
-                            ApplicationStatus.SCREENING);
+            verify(
+                    authorizationService)
+                    .checkCanManage(
+                            application,
+                            recruiter);
 
             verify(
                     applicationStatusService)
                     .transition(
                             application,
                             ApplicationStatus.SCREENING);
+        }
+
+        @Test
+        @DisplayName("Should reject recruiter from another company")
+        void shouldRejectRecruiterFromAnotherCompany() {
+
+            User recruiterB = ApplicationTestFactory.recruiter(
+                    "recruiter-b@test.com",
+                    ApplicationTestFactory.company());
+
+            ChangeApplicationStatusRequest request = ApplicationTestFactory.statusRequest(
+                    ApplicationStatus.SCREENING);
+
+            when(
+                    applicationRepository.findById(1L))
+                    .thenReturn(
+                            Optional.of(application));
+
+            when(
+                    userRepository.findByEmailIgnoreCase(
+                            "recruiter-b@test.com"))
+                    .thenReturn(
+                            Optional.of(recruiterB));
+
+            doThrow(
+                    new ForbiddenException(
+                            "Recruiter cannot manage applications for another company."))
+                    .when(authorizationService)
+                    .checkCanManage(
+                            application,
+                            recruiterB);
+
+            assertThatThrownBy(() -> applicationService.changeStatus(
+                    1L,
+                    "recruiter-b@test.com",
+                    request))
+                    .isInstanceOf(
+                            ForbiddenException.class)
+                    .hasMessage(
+                            "Recruiter cannot manage applications for another company.");
 
             verify(
-                    applicationRepository)
-                    .save(application);
+                    applicationRepository,
+                    never())
+                    .save(any());
+
+            verify(
+                    applicationStatusService,
+                    never())
+                    .transition(
+                            any(),
+                            any());
         }
 
         @Test
         @DisplayName("Should reject status change when application does not exist")
         void shouldRejectMissingApplication() {
 
-            ChangeApplicationStatusRequest request = ApplicationTestFactory
-                    .statusRequest(
-                            ApplicationStatus.SCREENING);
+            ChangeApplicationStatusRequest request = ApplicationTestFactory.statusRequest(
+                    ApplicationStatus.SCREENING);
 
-            when(
-                    applicationRepository
-                            .findById(999L))
-                    .thenReturn(
-                            Optional.empty());
+            when(applicationRepository.findById(999L))
+                    .thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> applicationService
-                    .changeStatus(
-                            999L,
-                            request))
-                    .isInstanceOf(
-                            ResourceNotFoundException.class)
-                    .hasMessage(
-                            "Application not found.");
+            assertThatThrownBy(() -> applicationService.changeStatus(
+                    999L,
+                    "recruiter@example.com",
+                    request))
+                    .isInstanceOf(ResourceNotFoundException.class)
+                    .hasMessage("Application not found.");
 
-            verify(
-                    applicationStatusService,
-                    never())
+            verify(applicationRepository)
+                    .findById(999L);
+
+            verify(applicationStatusService, never())
                     .transition(
+                            any(),
+                            any());
+
+            verify(userRepository, never())
+                    .findByEmailIgnoreCase(anyString());
+
+            verify(authorizationService, never())
+                    .checkCanManage(
                             any(),
                             any());
         }
@@ -591,8 +662,12 @@ class ApplicationServiceImplTest {
     }
 
     @Test
-    @DisplayName("Should return paged applications for job")
-    void shouldReturnPagedApplicationsForJob() {
+    @DisplayName("Should allow recruiter to search own company applications")
+    void shouldAllowRecruiterOwnCompanySearch() {
+
+        User recruiter = ApplicationTestFactory.recruiter(
+                "recruiter@test.com",
+                company);
 
         ApplicationSearchRequest request = new ApplicationSearchRequest();
 
@@ -607,8 +682,16 @@ class ApplicationServiceImplTest {
         PagedResponse<ApplicationResponse> expected = mock(PagedResponse.class);
 
         when(
-                jobRepository.existsByIdAndDeletedFalse(1L))
-                .thenReturn(true);
+                userRepository.findByEmailIgnoreCase(
+                        "recruiter@test.com"))
+                .thenReturn(
+                        Optional.of(recruiter));
+
+        doNothing()
+                .when(authorizationService)
+                .checkCanManageJob(
+                        1L,
+                        recruiter);
 
         when(
                 applicationRepository.findAll(
@@ -624,6 +707,7 @@ class ApplicationServiceImplTest {
 
         PagedResponse<ApplicationResponse> result = applicationService.searchApplications(
                 1L,
+                "recruiter@test.com",
                 request,
                 pageable);
 
@@ -631,20 +715,48 @@ class ApplicationServiceImplTest {
                 .isSameAs(expected);
 
         verify(
-                jobRepository)
-                .existsByIdAndDeletedFalse(1L);
+                authorizationService)
+                .checkCanManageJob(
+                        1L,
+                        recruiter);
+    }
+
+    @Test
+    @DisplayName("Should reject recruiter from searching another company applications")
+    void shouldRejectRecruiterFromAnotherCompanySearch() {
+
+        User recruiterB = ApplicationTestFactory.recruiter(
+                "recruiter-b@test.com",
+                ApplicationTestFactory.company());
+
+        when(
+                userRepository.findByEmailIgnoreCase(
+                        "recruiter-b@test.com"))
+                .thenReturn(
+                        Optional.of(recruiterB));
+
+        doThrow(
+                new ForbiddenException(
+                        "Recruiter cannot manage applications for another company."))
+                .when(authorizationService)
+                .checkCanManageJob(
+                        1L,
+                        recruiterB);
+
+        assertThatThrownBy(() -> applicationService.searchApplications(
+                1L,
+                "recruiter-b@test.com",
+                new ApplicationSearchRequest(),
+                PageRequest.of(0, 10)))
+                .isInstanceOf(
+                        ForbiddenException.class);
 
         verify(
-                applicationRepository)
+                applicationRepository,
+                never())
                 .findAll(
                         any(Specification.class),
-                        eq(pageable));
-
-        verify(
-                pageMapper)
-                .toPagedResponse(
-                        eq(page),
-                        any());
+                        any(Pageable.class));
     }
 
     @Test
@@ -666,9 +778,14 @@ class ApplicationServiceImplTest {
         @SuppressWarnings("unchecked")
         PagedResponse<ApplicationResponse> expected = mock(PagedResponse.class);
 
+        User recruiter = new User();
+        recruiter.setEmail("recruiter@example.com");
+
         when(
-                jobRepository.existsByIdAndDeletedFalse(1L))
-                .thenReturn(true);
+                userRepository.findByEmailIgnoreCase(
+                        "recruiter@example.com"))
+                .thenReturn(
+                        Optional.of(recruiter));
 
         when(
                 applicationRepository.findAll(
@@ -684,35 +801,34 @@ class ApplicationServiceImplTest {
 
         PagedResponse<ApplicationResponse> result = applicationService.searchApplications(
                 1L,
+                "recruiter@example.com",
                 request,
                 pageable);
 
         assertThat(result)
                 .isSameAs(expected);
-    }
-
-    @Test
-    @DisplayName("Should throw when job does not exist")
-    void shouldThrowWhenJobDoesNotExist() {
-
-        when(
-                jobRepository.existsByIdAndDeletedFalse(999L))
-                .thenReturn(false);
-
-        assertThatThrownBy(() -> applicationService.searchApplications(
-                999L,
-                new ApplicationSearchRequest(),
-                PageRequest.of(0, 10)))
-                .isInstanceOf(
-                        ResourceNotFoundException.class)
-                .hasMessage(
-                        "Job not found.");
 
         verify(
-                applicationRepository,
-                never())
+                userRepository)
+                .findByEmailIgnoreCase(
+                        "recruiter@example.com");
+
+        verify(
+                authorizationService)
+                .checkCanManageJob(
+                        1L,
+                        recruiter);
+
+        verify(
+                applicationRepository)
                 .findAll(
                         any(Specification.class),
-                        any(Pageable.class));
+                        eq(pageable));
+
+        verify(
+                pageMapper)
+                .toPagedResponse(
+                        eq(page),
+                        any());
     }
 }

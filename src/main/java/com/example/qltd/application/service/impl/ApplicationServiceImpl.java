@@ -7,6 +7,7 @@ import com.example.qltd.application.dto.response.ApplicationResponse;
 import com.example.qltd.application.entity.Application;
 import com.example.qltd.application.mapper.ApplicationMapper;
 import com.example.qltd.application.repository.ApplicationRepository;
+import com.example.qltd.application.service.ApplicationAuthorizationService;
 import com.example.qltd.application.service.ApplicationService;
 import com.example.qltd.application.service.ApplicationStatusService;
 import com.example.qltd.application.specification.ApplicationSpecification;
@@ -46,6 +47,8 @@ public class ApplicationServiceImpl
     private final ApplicationValidator applicationValidator;
 
     private final ApplicationStatusService applicationStatusService;
+
+    private final ApplicationAuthorizationService authorizationService;
 
     @Override
     public ApplicationResponse createApplication(
@@ -119,12 +122,23 @@ public class ApplicationServiceImpl
     @Override
     public ApplicationResponse changeStatus(
             Long applicationId,
+            String recruiterEmail,
             ChangeApplicationStatusRequest request) {
 
         Application application = applicationRepository
                 .findById(applicationId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Application not found."));
+
+        User recruiter = userRepository
+                .findByEmailIgnoreCase(
+                        recruiterEmail)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User not found."));
+
+        authorizationService.checkCanManage(
+                application,
+                recruiter);
 
         applicationStatusService.transition(
                 application,
@@ -167,14 +181,19 @@ public class ApplicationServiceImpl
     @Transactional(readOnly = true)
     public PagedResponse<ApplicationResponse> searchApplications(
             Long jobId,
+            String recruiterEmail,
             ApplicationSearchRequest request,
             Pageable pageable) {
 
-        if (!jobRepository.existsByIdAndDeletedFalse(jobId)) {
+        User recruiter = userRepository
+                .findByEmailIgnoreCase(
+                        recruiterEmail)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User not found."));
 
-            throw new ResourceNotFoundException(
-                    "Job not found.");
-        }
+        authorizationService.checkCanManageJob(
+                jobId,
+                recruiter);
 
         Specification<Application> specification = ApplicationSpecification.search(
                 jobId,

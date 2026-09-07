@@ -88,10 +88,14 @@ public class ApplicationController {
     @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")
     public ResponseEntity<ApiResponse<ApplicationResponse>> changeStatus(
             @PathVariable Long id,
-            @Valid @RequestBody ChangeApplicationStatusRequest request) {
+
+            @Valid @RequestBody ChangeApplicationStatusRequest request,
+
+            Authentication authentication) {
 
         ApplicationResponse response = applicationService.changeStatus(
                 id,
+                authentication.getName(),
                 request);
 
         return ResponseEntity.ok(
@@ -138,10 +142,13 @@ public class ApplicationController {
 
             ApplicationSearchRequest request,
 
-            @PageableDefault(page = 0, size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+            @PageableDefault(page = 0, size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+
+            Authentication authentication) {
 
         PagedResponse<ApplicationResponse> response = applicationService.searchApplications(
                 jobId,
+                authentication.getName(),
                 request,
                 pageable);
 

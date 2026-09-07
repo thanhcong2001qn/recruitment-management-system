@@ -166,10 +166,10 @@ public class JobController {
     public ResponseEntity<ApiResponse<JobResponse>> updateJob(
             @Parameter(description = "Job ID", example = "1", required = true) @PathVariable Long id,
 
-            @Valid @RequestBody UpdateJobRequest request) {
+            @Valid @RequestBody UpdateJobRequest request, Authentication authentication) {
 
         JobResponse response = jobService.updateJob(
-                id,
+                id, authentication.getName(),
                 request);
 
         return ResponseEntity.ok(
@@ -191,9 +191,10 @@ public class JobController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")
     public ResponseEntity<ApiResponse<Void>> deleteJob(
-            @Parameter(description = "Job ID", example = "1", required = true) @PathVariable Long id) {
+            @Parameter(description = "Job ID", example = "1", required = true) @PathVariable Long id,
+            Authentication authentication) {
 
-        jobService.deleteJob(id);
+        jobService.deleteJob(id, authentication.getName());
 
         return ResponseEntity.ok(
                 ApiResponse.<Void>builder()
@@ -211,10 +212,11 @@ public class JobController {
     @PostMapping("/{id}/publish")
     @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")
     public ResponseEntity<ApiResponse<JobResponse>> publishJob(
-            @PathVariable Long id) {
+            @PathVariable Long id, Authentication authentication) {
 
         JobResponse response = jobService.changeStatus(
                 id,
+                authentication.getName(),
                 JobStatus.PUBLISHED);
 
         return ResponseEntity.ok(
@@ -234,10 +236,11 @@ public class JobController {
     @PostMapping("/{id}/close")
     @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")
     public ResponseEntity<ApiResponse<JobResponse>> closeJob(
-            @PathVariable Long id) {
+            @PathVariable Long id, Authentication authentication) {
 
         JobResponse response = jobService.changeStatus(
                 id,
+                authentication.getName(),
                 JobStatus.CLOSED);
 
         return ResponseEntity.ok(
@@ -257,10 +260,11 @@ public class JobController {
     @PostMapping("/{id}/expire")
     @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")
     public ResponseEntity<ApiResponse<JobResponse>> expireJob(
-            @PathVariable Long id) {
+            @PathVariable Long id, Authentication authentication) {
 
         JobResponse response = jobService.changeStatus(
                 id,
+                authentication.getName(),
                 JobStatus.EXPIRED);
 
         return ResponseEntity.ok(
@@ -280,10 +284,11 @@ public class JobController {
     @PostMapping("/{id}/archive")
     @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")
     public ResponseEntity<ApiResponse<JobResponse>> archiveJob(
-            @PathVariable Long id) {
+            @PathVariable Long id, Authentication authentication) {
 
         JobResponse response = jobService.changeStatus(
                 id,
+                authentication.getName(),
                 JobStatus.ARCHIVED);
 
         return ResponseEntity.ok(
