@@ -83,6 +83,32 @@ public class ApplicationController {
                         .build());
     }
 
+    @Operation(summary = "Get application for management", description = "Get application details as an admin or recruiter with company ownership.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Application retrieved successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Authentication required"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Access denied"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Application or user not found")
+    })
+    @GetMapping("/applications/manage/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")
+    public ResponseEntity<ApiResponse<ApplicationResponse>> getManagementApplication(
+            @PathVariable Long id,
+            Authentication authentication) {
+
+        ApplicationResponse response = applicationService
+                .getManagementApplication(
+                        id,
+                        authentication.getName());
+
+        return ResponseEntity.ok(
+                ApiResponse.<ApplicationResponse>builder()
+                        .success(true)
+                        .message("Application retrieved successfully")
+                        .data(response)
+                        .build());
+    }
+
     @Operation(summary = "Change application status", description = "Recruiter or admin updates application workflow status.")
     @PatchMapping("/applications/{id}/status")
     @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")

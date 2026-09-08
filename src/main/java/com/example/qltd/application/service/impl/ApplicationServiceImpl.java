@@ -120,6 +120,30 @@ public class ApplicationServiceImpl
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public ApplicationResponse getManagementApplication(
+            Long applicationId,
+            String managerEmail) {
+
+        Application application = applicationRepository
+                .findById(applicationId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Application not found."));
+
+        User manager = userRepository
+                .findByEmailIgnoreCase(managerEmail)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User not found."));
+
+        authorizationService.checkCanManage(
+                application,
+                manager);
+
+        return applicationMapper.toResponse(
+                application);
+    }
+
+    @Override
     public ApplicationResponse changeStatus(
             Long applicationId,
             String recruiterEmail,

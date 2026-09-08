@@ -18,6 +18,10 @@ public interface ApplicationService {
             Long applicationId,
             String candidateEmail);
 
+    ApplicationResponse getManagementApplication(
+            Long applicationId,
+            String managerEmail);
+
     ApplicationResponse changeStatus(
             Long applicationId,
             String recruiterEmail,
