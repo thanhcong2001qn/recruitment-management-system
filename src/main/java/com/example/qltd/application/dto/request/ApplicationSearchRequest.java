@@ -8,5 +8,7 @@ import lombok.Setter;
 @Setter
 public class ApplicationSearchRequest {
 
+    private String keyword;
+
     private ApplicationStatus status;
 }
