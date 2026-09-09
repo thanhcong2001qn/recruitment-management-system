@@ -1,22 +1,18 @@
 package com.example.qltd.user.entity;
 
-
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
 
+import com.example.qltd.company.entity.Company;
 import com.example.qltd.shared.enums.Role;
 import com.example.qltd.shared.enums.UserStatus;
 
-
 @Entity
-@Table(
-        name = "users",
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uk_users_email", columnNames = "email")
-        }
-)
+@Table(name = "users", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_users_email", columnNames = "email")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -48,6 +44,10 @@ public class User {
     @Column(nullable = false, length = 20)
     @Builder.Default
     private UserStatus status = UserStatus.ACTIVE;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id", foreignKey = @ForeignKey(name = "fk_user_company"))
+    private Company company;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
