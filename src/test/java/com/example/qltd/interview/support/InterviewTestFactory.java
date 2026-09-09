@@ -1,6 +1,7 @@
 package com.example.qltd.interview.support;
 
 import com.example.qltd.application.entity.Application;
+import com.example.qltd.interview.dto.request.CreateInterviewRequest;
 import com.example.qltd.interview.entity.Interview;
 import com.example.qltd.interview.enums.InterviewStatus;
 import com.example.qltd.interview.enums.InterviewType;
@@ -27,5 +28,21 @@ public final class InterviewTestFactory {
                 .meetingUrl("https://meet.example.com/interview")
                 .notes("Technical interview")
                 .build();
+    }
+
+    public static CreateInterviewRequest createRequest(
+            LocalDateTime scheduledAt) {
+
+        CreateInterviewRequest request = new CreateInterviewRequest();
+
+        request.setRoundNumber(1);
+        request.setInterviewType(InterviewType.VIDEO);
+        request.setScheduledAt(scheduledAt);
+        request.setDurationMinutes(60);
+        request.setMeetingUrl(
+                "https://meet.example.com/interview");
+        request.setNotes("Technical interview");
+
+        return request;
     }
 }
