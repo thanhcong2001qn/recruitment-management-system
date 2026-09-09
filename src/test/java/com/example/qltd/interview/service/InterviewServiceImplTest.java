@@ -9,9 +9,11 @@ import com.example.qltd.common.exception.DuplicateResourceException;
 import com.example.qltd.common.exception.ForbiddenException;
 import com.example.qltd.common.exception.ResourceNotFoundException;
 import com.example.qltd.company.entity.Company;
+import com.example.qltd.interview.dto.request.ChangeInterviewStatusRequest;
 import com.example.qltd.interview.dto.request.CreateInterviewRequest;
 import com.example.qltd.interview.dto.response.InterviewResponse;
 import com.example.qltd.interview.entity.Interview;
+import com.example.qltd.interview.enums.InterviewStatus;
 import com.example.qltd.interview.mapper.InterviewMapper;
 import com.example.qltd.interview.repository.InterviewRepository;
 import com.example.qltd.interview.service.impl.InterviewServiceImpl;
@@ -59,6 +61,9 @@ class InterviewServiceImplTest {
 
     @Mock
     private InterviewValidator interviewValidator;
+
+    @Mock
+    private InterviewStatusService interviewStatusService;
 
     @Mock
     private InterviewMapper interviewMapper;
@@ -247,5 +252,115 @@ class InterviewServiceImplTest {
         verify(interviewRepository, never()).save(
                 any(Interview.class));
         verifyNoInteractions(interviewMapper);
+    }
+
+    @Test
+    @DisplayName("Should change interview status successfully")
+    void shouldChangeInterviewStatusSuccessfully() {
+
+        Interview interview = InterviewTestFactory.interview(
+                application,
+                1,
+                request.getScheduledAt());
+        interview.setId(50L);
+
+        ChangeInterviewStatusRequest statusRequest = statusRequest(
+                InterviewStatus.IN_PROGRESS);
+
+        InterviewResponse expected = InterviewResponse.builder()
+                .id(50L)
+                .status(InterviewStatus.IN_PROGRESS)
+                .build();
+
+        when(interviewRepository.findById(50L))
+                .thenReturn(Optional.of(interview));
+        when(userRepository.findByEmailIgnoreCase(
+                "recruiter@test.com"))
+                .thenReturn(Optional.of(recruiter));
+        when(interviewRepository.save(interview))
+                .thenReturn(interview);
+        when(interviewMapper.toResponse(interview))
+                .thenReturn(expected);
+
+        InterviewResponse result = interviewService.changeStatus(
+                50L,
+                "recruiter@test.com",
+                statusRequest);
+
+        assertThat(result).isSameAs(expected);
+        verify(authorizationService).checkCanManage(
+                application,
+                recruiter);
+        verify(interviewStatusService).transition(
+                interview,
+                InterviewStatus.IN_PROGRESS);
+        verify(interviewRepository).save(interview);
+    }
+
+    @Test
+    @DisplayName("Missing interview should return not found")
+    void missingInterviewShouldReturnNotFound() {
+
+        ChangeInterviewStatusRequest statusRequest = statusRequest(
+                InterviewStatus.IN_PROGRESS);
+
+        when(interviewRepository.findById(999L))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> interviewService.changeStatus(
+                999L,
+                "recruiter@test.com",
+                statusRequest))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Interview not found.");
+
+        verifyNoInteractions(userRepository);
+        verifyNoInteractions(interviewStatusService);
+    }
+
+    @Test
+    @DisplayName("Status authorization failure should stop update")
+    void statusAuthorizationFailureShouldStopUpdate() {
+
+        Interview interview = InterviewTestFactory.interview(
+                application,
+                1,
+                request.getScheduledAt());
+        interview.setId(50L);
+
+        ChangeInterviewStatusRequest statusRequest = statusRequest(
+                InterviewStatus.IN_PROGRESS);
+
+        when(interviewRepository.findById(50L))
+                .thenReturn(Optional.of(interview));
+        when(userRepository.findByEmailIgnoreCase(
+                "recruiter@test.com"))
+                .thenReturn(Optional.of(recruiter));
+
+        doThrow(new ForbiddenException(
+                "Recruiter cannot manage applications for another company."))
+                .when(authorizationService)
+                .checkCanManage(application, recruiter);
+
+        assertThatThrownBy(() -> interviewService.changeStatus(
+                50L,
+                "recruiter@test.com",
+                statusRequest))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessage(
+                        "Recruiter cannot manage applications for another company.");
+
+        verifyNoInteractions(interviewStatusService);
+        verify(interviewRepository, never()).save(interview);
+        verifyNoInteractions(interviewMapper);
+    }
+
+    private ChangeInterviewStatusRequest statusRequest(
+            InterviewStatus status) {
+
+        ChangeInterviewStatusRequest statusRequest = new ChangeInterviewStatusRequest();
+        statusRequest.setStatus(status);
+
+        return statusRequest;
     }
 }

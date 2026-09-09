@@ -5,12 +5,14 @@ import com.example.qltd.application.repository.ApplicationRepository;
 import com.example.qltd.application.service.ApplicationAuthorizationService;
 import com.example.qltd.common.exception.DuplicateResourceException;
 import com.example.qltd.common.exception.ResourceNotFoundException;
+import com.example.qltd.interview.dto.request.ChangeInterviewStatusRequest;
 import com.example.qltd.interview.dto.request.CreateInterviewRequest;
 import com.example.qltd.interview.dto.response.InterviewResponse;
 import com.example.qltd.interview.entity.Interview;
 import com.example.qltd.interview.mapper.InterviewMapper;
 import com.example.qltd.interview.repository.InterviewRepository;
 import com.example.qltd.interview.service.InterviewService;
+import com.example.qltd.interview.service.InterviewStatusService;
 import com.example.qltd.interview.validator.InterviewValidator;
 import com.example.qltd.user.entity.User;
 import com.example.qltd.user.repository.UserRepository;
@@ -32,6 +34,8 @@ public class InterviewServiceImpl implements InterviewService {
     private final ApplicationAuthorizationService authorizationService;
 
     private final InterviewValidator interviewValidator;
+
+    private final InterviewStatusService interviewStatusService;
 
     private final InterviewMapper interviewMapper;
 
@@ -83,5 +87,36 @@ public class InterviewServiceImpl implements InterviewService {
 
         return interviewMapper.toResponse(
                 savedInterview);
+    }
+
+    @Override
+    public InterviewResponse changeStatus(
+            Long interviewId,
+            String managerEmail,
+            ChangeInterviewStatusRequest request) {
+
+        Interview interview = interviewRepository
+                .findById(interviewId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Interview not found."));
+
+        User manager = userRepository
+                .findByEmailIgnoreCase(managerEmail)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User not found."));
+
+        authorizationService.checkCanManage(
+                interview.getApplication(),
+                manager);
+
+        interviewStatusService.transition(
+                interview,
+                request.getStatus());
+
+        Interview updatedInterview = interviewRepository.save(
+                interview);
+
+        return interviewMapper.toResponse(
+                updatedInterview);
     }
 }
