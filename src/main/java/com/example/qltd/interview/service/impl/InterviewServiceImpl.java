@@ -18,6 +18,9 @@ import com.example.qltd.interview.validator.InterviewValidator;
 import com.example.qltd.user.entity.User;
 import com.example.qltd.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +42,34 @@ public class InterviewServiceImpl implements InterviewService {
     private final InterviewStatusService interviewStatusService;
 
     private final InterviewMapper interviewMapper;
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<InterviewResponse> getApplicationInterviews(
+            Long applicationId,
+            String managerEmail) {
+
+        Application application = applicationRepository
+                .findById(applicationId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Application not found."));
+
+        User manager = userRepository
+                .findByEmailIgnoreCase(managerEmail)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User not found."));
+
+        authorizationService.checkCanManage(
+                application,
+                manager);
+
+        return interviewRepository
+                .findAllByApplicationIdOrderByRoundNumberAsc(
+                        applicationId)
+                .stream()
+                .map(interviewMapper::toResponse)
+                .toList();
+    }
 
     @Override
     public InterviewResponse scheduleInterview(
