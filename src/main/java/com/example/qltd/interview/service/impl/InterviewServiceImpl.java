@@ -7,6 +7,7 @@ import com.example.qltd.common.exception.DuplicateResourceException;
 import com.example.qltd.common.exception.ResourceNotFoundException;
 import com.example.qltd.interview.dto.request.ChangeInterviewStatusRequest;
 import com.example.qltd.interview.dto.request.CreateInterviewRequest;
+import com.example.qltd.interview.dto.request.UpdateInterviewFeedbackRequest;
 import com.example.qltd.interview.dto.response.InterviewResponse;
 import com.example.qltd.interview.entity.Interview;
 import com.example.qltd.interview.mapper.InterviewMapper;
@@ -112,6 +113,38 @@ public class InterviewServiceImpl implements InterviewService {
         interviewStatusService.transition(
                 interview,
                 request.getStatus());
+
+        Interview updatedInterview = interviewRepository.save(
+                interview);
+
+        return interviewMapper.toResponse(
+                updatedInterview);
+    }
+
+    @Override
+    public InterviewResponse updateFeedback(
+            Long interviewId,
+            String managerEmail,
+            UpdateInterviewFeedbackRequest request) {
+
+        Interview interview = interviewRepository
+                .findById(interviewId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Interview not found."));
+
+        User manager = userRepository
+                .findByEmailIgnoreCase(managerEmail)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User not found."));
+
+        authorizationService.checkCanManage(
+                interview.getApplication(),
+                manager);
+
+        interviewValidator.validateFeedback(interview);
+
+        interview.setFeedback(request.getFeedback());
+        interview.setRating(request.getRating());
 
         Interview updatedInterview = interviewRepository.save(
                 interview);

@@ -88,6 +88,20 @@ public class InterviewValidator {
         }
     }
 
+    public void validateFeedback(
+            Interview interview) {
+
+        if (interview == null) {
+            throw new BusinessRuleException(
+                    "Interview is required.");
+        }
+
+        if (interview.getStatus() != InterviewStatus.COMPLETED) {
+            throw new BusinessRuleException(
+                    "Feedback can only be updated for completed interviews.");
+        }
+    }
+
     private void validateFromScheduled(
             InterviewStatus targetStatus) {
 

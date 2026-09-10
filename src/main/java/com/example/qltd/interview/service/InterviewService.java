@@ -2,6 +2,7 @@ package com.example.qltd.interview.service;
 
 import com.example.qltd.interview.dto.request.ChangeInterviewStatusRequest;
 import com.example.qltd.interview.dto.request.CreateInterviewRequest;
+import com.example.qltd.interview.dto.request.UpdateInterviewFeedbackRequest;
 import com.example.qltd.interview.dto.response.InterviewResponse;
 
 public interface InterviewService {
@@ -15,4 +16,9 @@ public interface InterviewService {
             Long interviewId,
             String managerEmail,
             ChangeInterviewStatusRequest request);
+
+    InterviewResponse updateFeedback(
+            Long interviewId,
+            String managerEmail,
+            UpdateInterviewFeedbackRequest request);
 }
